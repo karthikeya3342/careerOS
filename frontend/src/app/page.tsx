@@ -27,11 +27,9 @@ interface Application {
   has_outreach: boolean;
 }
 
-interface ParsedSection {
+interface MarkdownSection {
   title: string;
-  items: { key: string; value: string }[];
-  bullets: string[];
-  text: string[];
+  content: string;
 }
 
 interface ParsedResume {
@@ -196,22 +194,31 @@ function cleanLatexText(text: string): string {
   // 1. Remove LaTeX comments
   cleaned = cleaned.replace(/%.*$/gm, "");
   
-  // 2. Remove formatting macros with backslashes
+  // 2. Convert LaTeX list structures to Markdown equivalents
+  cleaned = cleaned.replace(/\\item\s+/gi, "\n- ");
+  cleaned = cleaned.replace(/\\begin\{itemize\}/gi, "")
+                   .replace(/\\end\{itemize\}/gi, "")
+                   .replace(/\\begin\{enumerate\}/gi, "")
+                   .replace(/\\end\{enumerate\}/gi, "")
+                   .replace(/\\begin\{description\}/gi, "")
+                   .replace(/\\end\{description\}/gi, "");
+                   
+  // 3. Remove formatting macros with backslashes
   cleaned = cleaned.replace(/\\(scshape|Huge|huge|LARGE|Large|large|bfseries|bf|itshape|it|slshape|sl|rmfamily|sffamily|ttfamily|mdseries|upshape)\b/gi, "");
   
-  // 3. Extract text inside tag command formats, preserving the content
-  // E.g., \textbf{Text} -> Text
+  // 4. Extract text inside tag command formats, preserving the content
   cleaned = cleaned.replace(/\\(textbf|textit|texttt|underline|centerline|scshape)\{(.*?)\}/gi, "$2");
   
-  // 4. Clean href links
+  // 5. Clean href links
+  cleaned = cleaned.replace(/\\href\{mailto:(.*?)\}/gi, "$1");
   cleaned = cleaned.replace(/\\href\{(.*?)\}\{(.*?)\}/gi, "$2 ($1)");
   cleaned = cleaned.replace(/\\href\{(.*?)\}/gi, "$1");
   
-  // 5. Remove layout adjustments (hspace, vspace)
+  // 6. Remove layout adjustments (hspace, vspace)
   cleaned = cleaned.replace(/\\(hspace|vspace|exspace)\*?\{.*?\}/gi, "");
   cleaned = cleaned.replace(/\\(hfill|vline|noindent|newline|\\)/gi, "");
   
-  // 6. Clean escaped characters
+  // 7. Clean escaped characters
   cleaned = cleaned.replace(/\\%/g, "%")
                    .replace(/\\&/g, "&")
                    .replace(/\\_/g, "_")
@@ -219,49 +226,47 @@ function cleanLatexText(text: string): string {
                    .replace(/\\\{/g, "{")
                    .replace(/\\\}/g, "}");
                    
-  // 7. Strip leftover braces and loose backslashes
+  // 8. Strip leftover braces and loose backslashes
   cleaned = cleaned.replace(/\\/g, "").replace(/[\{\}]/g, "");
   
-  // 8. Clean up whitespace
+  // 9. Clean up whitespace
   cleaned = cleaned.replace(/\s+/g, " ").trim();
   
   return cleaned;
 }
 
-// Parsing Markdown into structured JSON sections
-function parseMarkdownProfile(md: string): ParsedSection[] {
+// Splits the Hindsight candidate profile markdown by its headers into separate card sections
+function splitProfileMarkdown(md: string): MarkdownSection[] {
   if (!md) return [];
-  const sections: ParsedSection[] = [];
+  const sections: MarkdownSection[] = [];
   const lines = md.split("\n");
-  let currentSection: ParsedSection = { title: "Overview", items: [], bullets: [], text: [] };
-
+  let currentSection: MarkdownSection = { title: "Overview", content: "" };
+  
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed) continue;
-
-    if (trimmed.startsWith("# ") || trimmed.startsWith("## ")) {
-      if (currentSection.items.length > 0 || currentSection.bullets.length > 0 || currentSection.text.length > 0 || currentSection.title !== "Overview") {
-        sections.push(currentSection);
+    if (trimmed.startsWith("## ") || trimmed.startsWith("# ") || (trimmed.startsWith("### ") && currentSection.title === "Overview")) {
+      if (currentSection.content.trim() || currentSection.title !== "Overview") {
+        sections.push({
+          title: currentSection.title,
+          content: currentSection.content.trim()
+        });
       }
-      const title = trimmed.replace(/^#+\s+/, "");
-      currentSection = { title, items: [], bullets: [], text: [] };
+      currentSection = {
+        title: trimmed.replace(/^#+\s+/, "").trim(),
+        content: ""
+      };
     } else {
-      // Match "- **Key**: Value" or "* **Key**: Value" or "- **Key** : Value"
-      const match = trimmed.match(/^[-*]\s*\*\*(.*?)\*\*[:\s]+(.*)/);
-      if (match) {
-        currentSection.items.push({ key: match[1].trim(), value: match[2].trim() });
-      } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-        currentSection.bullets.push(trimmed.replace(/^[-*]\s+/, "").trim());
-      } else {
-        currentSection.text.push(trimmed);
-      }
+      currentSection.content += line + "\n";
     }
   }
-
-  if (currentSection.items.length > 0 || currentSection.bullets.length > 0 || currentSection.text.length > 0 || currentSection.title !== "Overview") {
-    sections.push(currentSection);
+  
+  if (currentSection.content.trim() || currentSection.title !== "Overview") {
+    sections.push({
+      title: currentSection.title,
+      content: currentSection.content.trim()
+    });
   }
-
+  
   return sections;
 }
 
@@ -443,12 +448,24 @@ function parseBoldText(text: string) {
 const RenderMarkdown = ({ text }: { text: string }) => {
   if (!text) return null;
   
-  const lines = text.split("\n");
+  // Clean LaTeX symbols
+  const cleanedText = text
+    .replace(/\$\\rightarrow\$/g, "→")
+    .replace(/\$\\leftarrow\$/g, "←")
+    .replace(/\\rightarrow/g, "→")
+    .replace(/\\leftarrow/g, "←")
+    .replace(/\$\$/g, "");
+
+  const lines = cleanedText.split("\n");
   return (
     <div className="space-y-3 select-text font-sans">
       {lines.map((line, i) => {
         const trimmed = line.trim();
         if (!trimmed) return <div key={i} className="h-1" />;
+        
+        // Check indentation level for nested lists
+        const leadingSpaces = line.match(/^\s*/)?.[0].length || 0;
+        const isNested = leadingSpaces >= 2;
         
         // Headers
         if (trimmed.startsWith("### ")) {
@@ -477,16 +494,27 @@ const RenderMarkdown = ({ text }: { text: string }) => {
         if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
           const bulletContent = trimmed.substring(2);
           return (
-            <div key={i} className="flex items-start gap-2.5 text-xs leading-relaxed pl-2">
-              <span className="text-vibrantred mt-1 shrink-0">•</span>
+            <div key={i} className={`flex items-start gap-2.5 text-xs leading-relaxed ${isNested ? "pl-6 text-navy/80" : "pl-2"}`}>
+              <span className="text-vibrantred mt-1 shrink-0">{isNested ? "◦" : "•"}</span>
               <span>{parseBoldText(bulletContent)}</span>
+            </div>
+          );
+        }
+
+        // Ordered lists
+        const olMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+        if (olMatch) {
+          return (
+            <div key={i} className="flex items-start gap-2 text-xs leading-relaxed pl-2">
+              <span className="text-vibrantred font-bold shrink-0">{olMatch[1]}.</span>
+              <span>{parseBoldText(olMatch[2])}</span>
             </div>
           );
         }
 
         // Standard text line
         return (
-          <p key={i} className="text-xs leading-loose text-navy/90">
+          <p key={i} className={`text-xs leading-loose text-navy/90 ${isNested ? "pl-6" : ""}`}>
             {parseBoldText(trimmed)}
           </p>
         );
@@ -879,46 +907,7 @@ export default function Home() {
   };
 
   // Helper to parse profile markdown
-  const parsedSections = loadedProfile ? parseMarkdownProfile(loadedProfile.profile_summary) : [];
-
-  // Helper to render parsed profile content cards
-  const renderSectionContent = (section: ParsedSection) => {
-    return (
-      <div className="space-y-4">
-        {section.items.length > 0 && (
-          <div className="grid grid-cols-1 gap-2 bg-antiwhite/50 p-3 border-2 border-navy">
-            {section.items.map((item, idx) => (
-              <div key={idx} className="flex flex-col sm:flex-row sm:items-baseline gap-1 py-1 border-b border-navy/10 last:border-b-0 text-xs font-sans">
-                <span className="font-extrabold uppercase text-frenchgray sm:w-1/3 min-w-[120px] tracking-wide">{item.key}</span>
-                <span className="font-bold text-navy sm:w-2/3 leading-relaxed break-all select-all">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {section.bullets.length > 0 && (
-          <div className="space-y-2">
-            {section.bullets.map((bullet, idx) => (
-              <div key={idx} className="flex items-start gap-2.5 text-xs font-bold text-navy/95 leading-relaxed bg-antiwhite/20 p-2 border border-navy/5">
-                <span className="text-vibrantred select-none mt-0.5">•</span>
-                <span>{bullet}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {section.text.length > 0 && (
-          <div className="space-y-2">
-            {section.text.map((t, idx) => (
-              <p key={idx} className="text-xs font-bold text-navy/90 leading-loose py-0.5 bg-antiwhite/10 p-2 border border-navy/5">
-                {t}
-              </p>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
+  const parsedSections = loadedProfile ? splitProfileMarkdown(loadedProfile.profile_summary) : [];
 
   // Calculate Average ATS score
   const appsWithScores = applications.filter(a => a.ats_score > 0);
@@ -1226,14 +1215,14 @@ export default function Home() {
                   <div className="grid grid-cols-1 gap-6">
                     {parsedSections.map((sec, i) => (
                       <div key={i} className="border-3 border-navy p-4 shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] bg-white relative">
-                        <div className="absolute right-3 top-3 bg-navy/5 text-navy border border-navy/10 text-[9px] font-black uppercase px-1.5 py-0.5 tracking-wider">
+                        <div className="absolute right-3 top-3 bg-navy/5 text-navy border border-navy/10 text-[9px] font-black uppercase px-1.5 py-0.5 tracking-wider font-sans">
                           Section {i+1}
                         </div>
-                        <h3 className="text-base font-black uppercase text-navy border-b-2 border-navy pb-1.5 mb-3 flex items-center gap-1.5">
+                        <h3 className="text-base font-black uppercase text-navy border-b-2 border-navy pb-1.5 mb-3 flex items-center gap-1.5 font-sans">
                           <span className="w-1.5 h-3 bg-vibrantred" />
                           {sec.title}
                         </h3>
-                        {renderSectionContent(sec)}
+                        <RenderMarkdown text={sec.content} />
                       </div>
                     ))}
                   </div>
@@ -1248,10 +1237,10 @@ export default function Home() {
                         <Icons.Sparkles />
                       </div>
                       <div>
-                        <h3 className="text-sm font-black uppercase tracking-wider text-frenchgray">Adaptive Memory Preferences</h3>
-                        <p className="text-xs font-bold leading-loose mt-2 text-antiwhite/90 bg-black/25 p-3 border border-frenchgray/10 font-mono">
-                          {loadedProfile.preferences || "Learning Preferences: No mental model preferences formed yet. Memory will update automatically based on job optimization results."}
-                        </p>
+                        <h3 className="text-sm font-black uppercase tracking-wider text-frenchgray font-sans">Adaptive Memory Preferences</h3>
+                        <div className="text-xs font-bold leading-loose mt-2 text-antiwhite/90 bg-black/25 p-3 border border-frenchgray/10 font-mono whitespace-pre-wrap">
+                          <RenderMarkdown text={loadedProfile.preferences || "Learning Preferences: No mental model preferences formed yet. Memory will update automatically based on job optimization results."} />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1309,7 +1298,7 @@ export default function Home() {
                     <div className="space-y-4 animate-fade-in">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider">Candidate Name</label>
+                          <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider font-sans">Candidate Name</label>
                           <input 
                             type="text" 
                             value={name} 
@@ -1319,7 +1308,7 @@ export default function Home() {
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider">Contact Email</label>
+                          <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider font-sans">Contact Email</label>
                           <input 
                             type="email" 
                             value={email} 
@@ -1330,7 +1319,7 @@ export default function Home() {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider">Phone Number</label>
+                        <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider font-sans">Phone Number</label>
                         <input 
                           type="tel" 
                           value={phone} 
@@ -1340,7 +1329,7 @@ export default function Home() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider">University / Major</label>
+                        <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider font-sans">University / Major</label>
                         <input 
                           type="text" 
                           value={education} 
@@ -1350,7 +1339,7 @@ export default function Home() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider">CGPA / Performance</label>
+                          <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider font-sans">CGPA / Performance</label>
                           <input 
                             type="text" 
                             value={cgpa} 
@@ -1359,7 +1348,7 @@ export default function Home() {
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider">Core Experience</label>
+                          <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider font-sans">Core Experience</label>
                           <input 
                             type="text" 
                             value={experience} 
@@ -1373,7 +1362,7 @@ export default function Home() {
 
                   {/* Step 2: Crawlers & Socials */}
                   {formStep === "crawlers" && (
-                    <div className="space-y-4 animate-fade-in">
+                    <div className="space-y-4 animate-fade-in font-sans">
                       <p className="text-[10px] font-bold text-frenchgray leading-relaxed uppercase border-l-2 border-vibrantred pl-2">
                         Configure crawler sync triggers. Checked entries indicate active Sync states.
                       </p>
@@ -1412,7 +1401,7 @@ export default function Home() {
 
                   {/* Step 3: Raw Resume Import */}
                   {formStep === "resume" && (
-                    <div className="space-y-4 animate-fade-in">
+                    <div className="space-y-4 animate-fade-in font-sans">
                       <div>
                         <label className="block text-[10px] font-black uppercase text-frenchgray mb-1 tracking-wider">Previous Resume Plain Text</label>
                         <textarea 
@@ -1439,7 +1428,7 @@ export default function Home() {
                   )}
 
                   {/* Submit buttons */}
-                  <div className="pt-2 border-t-2 border-navy/10 flex flex-col gap-2">
+                  <div className="pt-2 border-t-2 border-navy/10 flex flex-col gap-2 font-sans">
                     <button 
                       type="submit" 
                       disabled={isOnboarding} 
@@ -1475,13 +1464,13 @@ export default function Home() {
                 </div>
                 <h2 className="text-xl sm:text-2xl font-black uppercase tracking-wide">Opportunities Board</h2>
               </div>
-              <span className="bg-vibrantred text-antiwhite text-[10px] font-black uppercase px-2.5 py-1 border-2 border-navy shadow-[2px_2px_0px_0px_rgba(43,45,66,1)] tracking-wide">
+              <span className="bg-vibrantred text-antiwhite text-[10px] font-black uppercase px-2.5 py-1 border-2 border-navy shadow-[2px_2px_0px_0px_rgba(43,45,66,1)] tracking-wide font-sans">
                 Matches Calibrated
               </span>
             </div>
 
             {/* Filters Bar */}
-            <div className="flex flex-col lg:flex-row gap-4 mb-6">
+            <div className="flex flex-col lg:flex-row gap-4 mb-6 font-sans">
               <div className="flex-1 flex items-center border-4 border-navy bg-white shadow-[2px_2px_0px_0px_rgba(43,45,66,1)]">
                 <div className="p-3 text-frenchgray">
                   <Icons.Search />
@@ -1518,7 +1507,7 @@ export default function Home() {
             {/* Live Pipeline Terminal Console (Horizontal Split overlay when applying) */}
             {pipelineLogs.length > 0 && (
               <div className="bg-navy border-4 border-navy text-antiwhite p-4 mb-6 shadow-[4px_4px_0px_0px_rgba(43,45,66,1)] font-mono text-xs">
-                <div className="flex justify-between items-center border-b border-frenchgray/30 pb-2 mb-3">
+                <div className="flex justify-between items-center border-b border-frenchgray/30 pb-2 mb-3 font-sans">
                   <div className="flex items-center gap-2">
                     <Icons.Terminal />
                     <span className="text-[10px] font-black uppercase tracking-wider text-frenchgray">Pipeline Terminal Output</span>
@@ -1569,8 +1558,8 @@ export default function Home() {
                   >
                     <div>
                       <div className="flex justify-between items-start gap-2">
-                        <span className="bg-navy text-antiwhite text-[9px] font-black uppercase px-2 py-0.5 tracking-wider border border-navy">{job.category}</span>
-                        <span className="text-[9px] font-extrabold text-frenchgray uppercase tracking-wide bg-antiwhite px-2 py-0.5 border border-navy/10">{job.location}</span>
+                        <span className="bg-navy text-antiwhite text-[9px] font-black uppercase px-2 py-0.5 tracking-wider border border-navy font-sans">{job.category}</span>
+                        <span className="text-[9px] font-extrabold text-frenchgray uppercase tracking-wide bg-antiwhite px-2 py-0.5 border border-navy/10 font-sans">{job.location}</span>
                       </div>
 
                       <h3 
@@ -1579,10 +1568,10 @@ export default function Home() {
                       >
                         {job.title}
                       </h3>
-                      <p className="text-xs font-black text-vibrantred uppercase tracking-wider">{job.company}</p>
+                      <p className="text-xs font-black text-vibrantred uppercase tracking-wider font-sans">{job.company}</p>
                       
                       {/* Match Score Gauge Indicator */}
-                      <div className="flex items-center gap-2 mt-3.5">
+                      <div className="flex items-center gap-2 mt-3.5 font-sans">
                         <RadialProgress score={matchScore} size={38} strokeWidth={3} />
                         {isRecommended && (
                           <div className="bg-vibrantred text-antiwhite text-[9px] font-black uppercase px-2 py-0.5 border border-navy">
@@ -1591,12 +1580,12 @@ export default function Home() {
                         )}
                       </div>
 
-                      <p className="text-xs text-navy/85 mt-4 line-clamp-3 font-semibold leading-loose border-t border-navy/5 pt-3 select-text">
+                      <p className="text-xs text-navy/85 mt-4 line-clamp-3 font-semibold leading-loose border-t border-navy/5 pt-3 select-text font-sans">
                         {job.description}
                       </p>
                       
                       {/* Skill Tags */}
-                      <div className="flex flex-wrap gap-1 mt-4">
+                      <div className="flex flex-wrap gap-1 mt-4 font-sans">
                         {job.skills.slice(0, 4).map((skill, index) => (
                           <span key={index} className="bg-frenchgray/15 text-navy border border-navy/30 text-[9px] font-extrabold px-2 py-0.5 select-all">
                             {skill}
@@ -1610,10 +1599,10 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div className="mt-6 border-t-2 border-navy pt-4 flex items-center justify-between gap-2">
+                    <div className="mt-6 border-t-2 border-navy pt-4 flex items-center justify-between gap-2 font-sans">
                       <button
                         onClick={() => setSelectedJob(job)}
-                        className="text-[10px] font-black uppercase text-frenchgray hover:text-navy tracking-wide flex items-center gap-0.5 cursor-pointer underline font-sans"
+                        className="text-[10px] font-black uppercase text-frenchgray hover:text-navy tracking-wide flex items-center gap-0.5 cursor-pointer underline"
                       >
                         View Details <Icons.ChevronRight />
                       </button>
@@ -1631,7 +1620,7 @@ export default function Home() {
             </div>
 
             {/* Pagination Controls */}
-            <div className="flex justify-between items-center mt-8 border-t-4 border-navy pt-6">
+            <div className="flex justify-between items-center mt-8 border-t-4 border-navy pt-6 font-sans">
               <span className="text-xs sm:text-sm font-black uppercase text-frenchgray tracking-wider">Total Discoverable: {totalJobs} jobs</span>
               <div className="flex gap-2">
                 <button
@@ -1671,7 +1660,7 @@ export default function Home() {
               <div className="space-y-6">
                 {applications.map(app => {
                   return (
-                    <div key={app.id} className="border-4 border-navy p-6 bg-white shadow-[4px_4px_0px_0px_rgba(43,45,66,1)] relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-[6px_6px_0px_0px_rgba(43,45,66,1)] transition-all">
+                    <div key={app.id} className="border-4 border-navy p-6 bg-white shadow-[4px_4px_0px_0px_rgba(43,45,66,1)] relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-[6px_6px_0px_0px_rgba(43,45,66,1)] transition-all font-sans">
                       {/* Decorative red edge */}
                       <div className="absolute left-0 top-0 h-full w-2 bg-vibrantred" />
                       
@@ -1764,7 +1753,7 @@ export default function Home() {
 
               {/* Match alignment estimation */}
               <div className="border-3 border-navy p-4 bg-white shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] mb-6 font-sans">
-                <h3 className="text-xs font-black uppercase text-navy border-b border-navy/10 pb-1.5 mb-3 flex items-center gap-1.5 font-sans">
+                <h3 className="text-xs font-black uppercase text-navy border-b border-navy/10 pb-1.5 mb-3 flex items-center gap-1.5">
                   <Icons.Sparkles /> Match Alignment Analysis
                 </h3>
                 <div className="space-y-3 text-xs">
@@ -1808,7 +1797,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="p-6 bg-white border-t-4 border-navy flex items-center justify-end gap-3">
+            <div className="p-6 bg-white border-t-4 border-navy flex items-center justify-end gap-3 font-sans">
               <button
                 onClick={() => setSelectedJob(null)}
                 className="bg-white hover:bg-frenchgray/10 text-navy font-black text-xs uppercase px-4 py-2 border-3 border-navy cursor-pointer transition-all"
@@ -1852,7 +1841,7 @@ export default function Home() {
               </div>
 
               {/* Subnavigation Tabs inside Application Drawer */}
-              <div className="flex flex-wrap border-2 border-navy mb-6 bg-white">
+              <div className="flex flex-wrap border-2 border-navy mb-6 bg-white font-sans">
                 {[
                   { id: "metrics", label: "ATS Analysis" },
                   { id: "preview", label: "Resume Preview" },
@@ -1985,7 +1974,7 @@ export default function Home() {
                         <div className="bg-white border-3 border-navy shadow-[4px_4px_0px_0px_rgba(43,45,66,1)] p-8 max-w-[600px] mx-auto text-navy font-serif leading-relaxed text-[11px] select-text">
                           {/* Resume Header */}
                           <div className="text-center border-b border-navy/20 pb-4 mb-4">
-                            <h1 className="text-xl font-bold uppercase tracking-wide">{previewResume.name || name}</h1>
+                            <h1 className="text-xl font-bold uppercase tracking-wide">{previewResume.name}</h1>
                             <div className="flex flex-wrap justify-center gap-3 mt-1.5 text-[9px] font-sans font-semibold text-frenchgray">
                               {previewResume.email && <span>{previewResume.email}</span>}
                               {previewResume.phone && <span>{previewResume.phone}</span>}
@@ -2138,7 +2127,7 @@ export default function Home() {
               )}
             </div>
 
-            <div className="p-6 bg-white border-t-4 border-navy flex justify-end">
+            <div className="p-6 bg-white border-t-4 border-navy flex justify-end font-sans">
               <button
                 onClick={() => setSelectedApp(null)}
                 className="bg-navy hover:bg-frenchgray text-antiwhite font-black text-xs uppercase px-5 py-2 border-3 border-navy cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none"
