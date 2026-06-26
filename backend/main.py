@@ -185,6 +185,16 @@ def get_applications():
             path = os.path.join("output", d)
             csv_path = os.path.join(path, "ats_evaluation_summary.csv")
             
+            has_pdf_file = False
+            pdf_path = os.path.join(path, "resume.pdf")
+            if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 100:
+                has_pdf_file = True
+
+            has_prep_file = False
+            prep_path = os.path.join(path, "interview_readiness.pdf")
+            if os.path.exists(prep_path) and os.path.getsize(prep_path) > 100:
+                has_prep_file = True
+
             # Default values
             app_info = {
                 "id": d,
@@ -193,9 +203,9 @@ def get_applications():
                 "ats_score": 0,
                 "strengths": [],
                 "improvements": [],
-                "has_pdf": os.path.exists(os.path.join(path, "resume.pdf")),
+                "has_pdf": has_pdf_file,
                 "has_tex": os.path.exists(os.path.join(path, "resume.tex")),
-                "has_prep": os.path.exists(os.path.join(path, "interview_readiness.pdf")),
+                "has_prep": has_prep_file,
                 "has_outreach": os.path.exists(os.path.join(path, "outreach_messages.md"))
             }
             
@@ -224,10 +234,12 @@ def get_applications():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/download/{app_id}/{filename}")
-def download_file(app_id: str, filename: str):
+def download_file(app_id: str, filename: str, inline: Optional[bool] = False):
     file_path = os.path.join("output", app_id, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
+    if inline or filename.endswith(".pdf"):
+        return FileResponse(file_path)
     return FileResponse(file_path, filename=filename)
 
 @app.get("/api/view-tex/{app_id}")

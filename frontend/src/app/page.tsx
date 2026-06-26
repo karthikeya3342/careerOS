@@ -32,17 +32,6 @@ interface MarkdownSection {
   content: string;
 }
 
-interface ParsedResume {
-  name: string;
-  email: string;
-  phone: string;
-  links: string[];
-  education: { school: string; degree: string; gpa: string; dates: string }[];
-  experience: { company: string; role: string; dates: string; location: string; bullets: string[] }[];
-  projects: { name: string; tech: string; link: string; bullets: string[] }[];
-  skills: { category: string; items: string }[];
-}
-
 interface Toast {
   id: string;
   message: string;
@@ -186,55 +175,6 @@ const Icons = {
   )
 };
 
-// Stripper utility to remove any residual LaTeX keywords, control commands, backslashes, or brackets
-function cleanLatexText(text: string): string {
-  if (!text) return "";
-  let cleaned = text;
-  
-  // 1. Remove LaTeX comments
-  cleaned = cleaned.replace(/%.*$/gm, "");
-  
-  // 2. Convert LaTeX list structures to Markdown equivalents
-  cleaned = cleaned.replace(/\\item\s+/gi, "\n- ");
-  cleaned = cleaned.replace(/\\begin\{itemize\}/gi, "")
-                   .replace(/\\end\{itemize\}/gi, "")
-                   .replace(/\\begin\{enumerate\}/gi, "")
-                   .replace(/\\end\{enumerate\}/gi, "")
-                   .replace(/\\begin\{description\}/gi, "")
-                   .replace(/\\end\{description\}/gi, "");
-                   
-  // 3. Remove formatting macros with backslashes
-  cleaned = cleaned.replace(/\\(scshape|Huge|huge|LARGE|Large|large|bfseries|bf|itshape|it|slshape|sl|rmfamily|sffamily|ttfamily|mdseries|upshape)\b/gi, "");
-  
-  // 4. Extract text inside tag command formats, preserving the content
-  cleaned = cleaned.replace(/\\(textbf|textit|texttt|underline|centerline|scshape)\{(.*?)\}/gi, "$2");
-  
-  // 5. Clean href links
-  cleaned = cleaned.replace(/\\href\{mailto:(.*?)\}/gi, "$1");
-  cleaned = cleaned.replace(/\\href\{(.*?)\}\{(.*?)\}/gi, "$2 ($1)");
-  cleaned = cleaned.replace(/\\href\{(.*?)\}/gi, "$1");
-  
-  // 6. Remove layout adjustments (hspace, vspace)
-  cleaned = cleaned.replace(/\\(hspace|vspace|exspace)\*?\{.*?\}/gi, "");
-  cleaned = cleaned.replace(/\\(hfill|vline|noindent|newline|\\)/gi, "");
-  
-  // 7. Clean escaped characters
-  cleaned = cleaned.replace(/\\%/g, "%")
-                   .replace(/\\&/g, "&")
-                   .replace(/\\_/g, "_")
-                   .replace(/\\#/g, "#")
-                   .replace(/\\\{/g, "{")
-                   .replace(/\\\}/g, "}");
-                   
-  // 8. Strip leftover braces and loose backslashes
-  cleaned = cleaned.replace(/\\/g, "").replace(/[\{\}]/g, "");
-  
-  // 9. Clean up whitespace
-  cleaned = cleaned.replace(/\s+/g, " ").trim();
-  
-  return cleaned;
-}
-
 // Splits the Hindsight candidate profile markdown by its headers into separate card sections
 function splitProfileMarkdown(md: string): MarkdownSection[] {
   if (!md) return [];
@@ -268,167 +208,6 @@ function splitProfileMarkdown(md: string): MarkdownSection[] {
   }
   
   return sections;
-}
-
-// Convert LaTeX resume content into structured JSON for preview
-function parseLatexResume(tex: string): ParsedResume {
-  const result: ParsedResume = {
-    name: "",
-    email: "",
-    phone: "",
-    links: [],
-    education: [],
-    experience: [],
-    projects: [],
-    skills: []
-  };
-
-  if (!tex) return result;
-
-  // Extract Name
-  const nameMatch = tex.match(/\\centerline\{\\Huge\\bf\s+(.*?)\}/) || tex.match(/\{\\Huge\s+(.*?)\}/) || tex.match(/\\textbf\{\\Large\s+(.*?)\}/) || tex.match(/\\centerline\{([^{}]+)\}/);
-  if (nameMatch) {
-    result.name = cleanLatexText(nameMatch[1]);
-  }
-
-  // Extract contact info
-  const emailMatch = tex.match(/mailto:([\w.-]+@[\w.-]+\.\w+)/) || tex.match(/[\w.-]+@[\w.-]+\.\w+/);
-  if (emailMatch) {
-    result.email = emailMatch[1] || emailMatch[0];
-  }
-
-  const phoneMatch = tex.match(/(\+?\d[\d-\s()]{8,15}\d)/);
-  if (phoneMatch) {
-    result.phone = phoneMatch[0];
-  }
-
-  // Links
-  const linkMatches = tex.matchAll(/\\href\{(.*?)\}/g);
-  for (const m of linkMatches) {
-    if (!m[1].includes("mailto:")) {
-      result.links.push(m[1]);
-    }
-  }
-  result.links = Array.from(new Set(result.links));
-
-  // split into sections
-  const sections = tex.split(/\\section\*?\{/);
-  for (const sec of sections) {
-    const titleMatch = sec.match(/^(.*?)\}/);
-    if (!titleMatch) continue;
-    const title = titleMatch[1].toLowerCase().trim();
-    const content = sec.slice(titleMatch[0].length);
-
-    if (title.includes("education")) {
-      const items = content.split(/\\textbf\{/);
-      for (const item of items) {
-        if (!item.trim()) continue;
-        const schoolMatch = item.match(/^(.*?)\}/);
-        if (!schoolMatch) continue;
-        const school = schoolMatch[1];
-
-        const degreeMatch = item.match(/\\textit\{(.*?)\}/);
-        const degree = degreeMatch ? degreeMatch[1] : "";
-
-        const dateMatch = item.match(/(\b(19|20)\d{2}\b|\bClass of (19|20)\d{2}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}\b)/i);
-        const dates = dateMatch ? dateMatch[0] : "";
-
-        const gpaMatch = item.match(/(?:GPA|CPI|CGPA)\s*:\s*([\d./]+)/i) || item.match(/CPI\s*:\s*([\d./]+)/i);
-        const gpa = gpaMatch ? gpaMatch[0] : "";
-
-        result.education.push({
-          school: cleanLatexText(school),
-          degree: cleanLatexText(degree),
-          gpa: cleanLatexText(gpa),
-          dates: cleanLatexText(dates)
-        });
-      }
-    } else if (title.includes("experience") || title.includes("employment") || title.includes("work")) {
-      const items = content.split(/\\textbf\{/);
-      for (const item of items) {
-        if (!item.trim()) continue;
-        const compMatch = item.match(/^(.*?)\}/);
-        if (!compMatch) continue;
-        const company = compMatch[1];
-
-        const roleMatch = item.match(/\\textit\{(.*?)\}/);
-        const role = roleMatch ? roleMatch[1] : "";
-
-        const bullets: string[] = [];
-        const itemMatches = item.matchAll(/\\item\s+(.*)/g);
-        for (const im of itemMatches) {
-          bullets.push(cleanLatexText(im[1]));
-        }
-
-        result.experience.push({
-          company: cleanLatexText(company),
-          role: cleanLatexText(role),
-          dates: "",
-          location: "",
-          bullets
-        });
-      }
-    } else if (title.includes("projects")) {
-      const items = content.split(/\\textbf\{/);
-      for (const item of items) {
-        if (!item.trim()) continue;
-        const nameMatch = item.match(/^(.*?)\}/);
-        if (!nameMatch) continue;
-        const name = nameMatch[1];
-
-        const techMatch = item.match(/\\textit\{(.*?)\}/);
-        const tech = techMatch ? techMatch[1] : "";
-
-        const bullets: string[] = [];
-        const itemMatches = item.matchAll(/\\item\s+(.*)/g);
-        for (const im of itemMatches) {
-          bullets.push(cleanLatexText(im[1]));
-        }
-
-        result.projects.push({
-          name: cleanLatexText(name),
-          tech: cleanLatexText(tech),
-          link: "",
-          bullets
-        });
-      }
-    } else if (title.includes("skills") || title.includes("expertise") || title.includes("abilities")) {
-      const skillMatches = content.matchAll(/\\textbf\{(.*?)\}:\s*(.*)/g);
-      for (const sm of skillMatches) {
-        result.skills.push({
-          category: cleanLatexText(sm[1]),
-          items: cleanLatexText(sm[2].split(/\\/)[0])
-        });
-      }
-    }
-  }
-
-  return result;
-}
-
-// Convert LaTeX Prep Guide to clean structured Q&A
-function cleanLatexPrepGuide(tex: string): { question: string; answer: string }[] {
-  if (!tex) return [];
-  const qas: { question: string; answer: string }[] = [];
-  
-  // Split by \item inside description or itemize
-  const items = tex.split(/\\item\s+/);
-  for (const it of items) {
-    if (!it.trim()) continue;
-    
-    // Find question: typically inside \textbf{Question}
-    const qMatch = it.match(/\\textbf\{(.*?)\}/) || it.match(/^\*\*(.*?)\*\*/);
-    if (qMatch) {
-      const question = cleanLatexText(qMatch[1]);
-      const rawAnswer = it.replace(qMatch[0], "");
-      const answer = cleanLatexText(rawAnswer);
-      
-      if (question.length > 3 && answer.length > 3) {
-        qas.push({ question, answer });
-      }
-    }
-  }
-  return qas;
 }
 
 // Helper to render bold text and format lines from raw text inputs
@@ -605,9 +384,7 @@ export default function Home() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [appDrawerTab, setAppDrawerTab] = useState<"metrics" | "preview" | "outreach" | "prep">("metrics");
-  const [appTexContent, setAppTexContent] = useState("");
   const [appOutreachContent, setAppOutreachContent] = useState("");
-  const [appPrepContent, setAppPrepContent] = useState("");
   const [isLoadingAppDetails, setIsLoadingAppDetails] = useState(false);
 
   // Toast Notification Stack State
@@ -711,32 +488,14 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch detailed content for selected application drawer
   const loadApplicationDetails = async (appId: string) => {
     setIsLoadingAppDetails(true);
-    setAppTexContent("");
     setAppOutreachContent("");
-    setAppPrepContent("");
     try {
-      // Fetch targeted resume latex code
-      const texRes = await fetch(`${API_BASE}/api/view-tex/${appId}`);
-      if (texRes.ok) {
-        const texData = await texRes.json();
-        setAppTexContent(texData.content || "");
-      }
-
-      // Fetch outreach email template
       const outreachRes = await fetch(`${API_BASE}/api/download/${appId}/outreach_messages.md`);
       if (outreachRes.ok) {
         const outreachText = await outreachRes.text();
         setAppOutreachContent(outreachText || "");
-      }
-
-      // Fetch interview readiness tex code
-      const prepRes = await fetch(`${API_BASE}/api/download/${appId}/interview_readiness.tex`);
-      if (prepRes.ok) {
-        const prepText = await prepRes.text();
-        setAppPrepContent(prepText || "");
       }
     } catch (err) {
       console.error("Error loading application drawer details:", err);
@@ -946,10 +705,6 @@ export default function Home() {
   };
 
   const activeStepIdx = getStepActiveIndex(pipelineStatus.stage);
-
-  // Parse details for latex preview
-  const previewResume = appTexContent ? parseLatexResume(appTexContent) : null;
-  const prepGuideQAs = appPrepContent ? cleanLatexPrepGuide(appPrepContent) : [];
 
   return (
     <div className="min-h-screen bg-antiwhite text-navy font-sans p-4 sm:p-6 antialiased selection:bg-vibrantred selection:text-antiwhite relative">
@@ -1753,7 +1508,7 @@ export default function Home() {
 
               {/* Match alignment estimation */}
               <div className="border-3 border-navy p-4 bg-white shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] mb-6 font-sans">
-                <h3 className="text-xs font-black uppercase text-navy border-b border-navy/10 pb-1.5 mb-3 flex items-center gap-1.5">
+                <h3 className="text-xs font-black uppercase text-navy border-b border-navy/10 pb-1.5 mb-3 flex items-center gap-1.5 font-sans">
                   <Icons.Sparkles /> Match Alignment Analysis
                 </h3>
                 <div className="space-y-3 text-xs">
@@ -1824,10 +1579,10 @@ export default function Home() {
             onClick={() => setSelectedApp(null)} 
           />
           <div className="fixed top-0 right-0 h-full w-full sm:w-[650px] md:w-[800px] bg-antiwhite border-l-4 border-navy shadow-[-10px_0px_30px_rgba(43,45,66,0.35)] z-[95] overflow-y-auto animate-drawer-in flex flex-col justify-between">
-            <div className="p-6">
+            <div className="p-6 flex-1 flex flex-col min-h-0">
               
               {/* Header block */}
-              <div className="flex justify-between items-start border-b-4 border-navy pb-3 mb-4">
+              <div className="flex justify-between items-start border-b-4 border-navy pb-3 mb-4 shrink-0">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black uppercase text-navy leading-none">{selectedApp.role}</h2>
                   <p className="text-sm font-black uppercase text-vibrantred tracking-wide mt-1">{selectedApp.company}</p>
@@ -1841,7 +1596,7 @@ export default function Home() {
               </div>
 
               {/* Subnavigation Tabs inside Application Drawer */}
-              <div className="flex flex-wrap border-2 border-navy mb-6 bg-white font-sans">
+              <div className="flex flex-wrap border-2 border-navy mb-6 bg-white font-sans shrink-0">
                 {[
                   { id: "metrics", label: "ATS Analysis" },
                   { id: "preview", label: "Resume Preview" },
@@ -1861,7 +1616,7 @@ export default function Home() {
               </div>
 
               {/* Action Bar for Downloads */}
-              <div className="flex flex-wrap items-center gap-2 p-3 bg-white border-2 border-navy mb-6 text-xs uppercase font-bold font-sans">
+              <div className="flex flex-wrap items-center gap-2 p-3 bg-white border-2 border-navy mb-6 text-xs uppercase font-bold font-sans shrink-0">
                 <span className="text-[9px] text-frenchgray font-black uppercase mr-2">Downloadable Resources:</span>
                 
                 {selectedApp.has_pdf && (
@@ -1904,15 +1659,15 @@ export default function Home() {
               </div>
 
               {isLoadingAppDetails ? (
-                <div className="p-16 text-center">
+                <div className="p-16 text-center shrink-0">
                   <div className="w-8 h-8 border-3 border-vibrantred border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                   <p className="text-xs font-black uppercase text-frenchgray">Recalling Application Artifacts...</p>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="flex-1 min-h-0 flex flex-col">
                   {/* Tab A: ATS Analysis & Strengths/Improvements */}
                   {appDrawerTab === "metrics" && (
-                    <div className="space-y-6 animate-fade-in font-sans">
+                    <div className="space-y-6 animate-fade-in font-sans overflow-y-auto pr-1">
                       <div className="flex items-center gap-4 bg-white border-3 border-navy p-4 shadow-[3px_3px_0px_0px_rgba(43,45,66,1)]">
                         <RadialProgress score={selectedApp.ats_score} size={64} strokeWidth={5} />
                         <div>
@@ -1965,106 +1720,20 @@ export default function Home() {
 
                   {/* Tab B: targeted Resume Sheet Preview */}
                   {appDrawerTab === "preview" && (
-                    <div className="space-y-4 animate-fade-in font-sans">
-                      <p className="text-[10px] font-black uppercase text-frenchgray tracking-wider">
-                        Rendered resume document preview (parsed from LaTeX artifact source code)
+                    <div className="animate-fade-in font-sans flex-1 flex flex-col min-h-0">
+                      <p className="text-[10px] font-black uppercase text-frenchgray tracking-wider leading-none mb-3">
+                        Targeted LaTeX Resume PDF Document (rendered inline)
                       </p>
                       
-                      {previewResume && previewResume.name ? (
-                        <div className="bg-white border-3 border-navy shadow-[4px_4px_0px_0px_rgba(43,45,66,1)] p-8 max-w-[600px] mx-auto text-navy font-serif leading-relaxed text-[11px] select-text">
-                          {/* Resume Header */}
-                          <div className="text-center border-b border-navy/20 pb-4 mb-4">
-                            <h1 className="text-xl font-bold uppercase tracking-wide">{previewResume.name}</h1>
-                            <div className="flex flex-wrap justify-center gap-3 mt-1.5 text-[9px] font-sans font-semibold text-frenchgray">
-                              {previewResume.email && <span>{previewResume.email}</span>}
-                              {previewResume.phone && <span>{previewResume.phone}</span>}
-                            </div>
-                            <div className="flex flex-wrap justify-center gap-2 mt-1 text-[8px] font-sans font-semibold text-navy/70">
-                              {previewResume.links.map((lnk, idx) => (
-                                <a key={idx} href={lnk} target="_blank" rel="noopener noreferrer" className="underline hover:text-vibrantred">
-                                  {lnk.replace(/^https?:\/\/(www\.)?/, "")}
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Education Section */}
-                          {previewResume.education.length > 0 && (
-                            <div className="mb-4">
-                              <h2 className="text-[10px] font-sans font-extrabold uppercase tracking-widest text-frenchgray border-b border-frenchgray/30 pb-0.5 mb-2">Education</h2>
-                              {previewResume.education.map((edu, i) => (
-                                <div key={i} className="mb-2">
-                                  <div className="flex justify-between font-bold">
-                                    <span>{edu.school}</span>
-                                    <span>{edu.dates}</span>
-                                  </div>
-                                  <div className="flex justify-between italic text-[10px]">
-                                    <span>{edu.degree}</span>
-                                    <span>{edu.gpa}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Experience Section */}
-                          {previewResume.experience.length > 0 && (
-                            <div className="mb-4">
-                              <h2 className="text-[10px] font-sans font-extrabold uppercase tracking-widest text-frenchgray border-b border-frenchgray/30 pb-0.5 mb-2">Work Experience</h2>
-                              {previewResume.experience.map((exp, i) => (
-                                <div key={i} className="mb-3">
-                                  <div className="flex justify-between font-bold">
-                                    <span>{exp.company}</span>
-                                    <span>{exp.dates}</span>
-                                  </div>
-                                  <p className="italic font-semibold text-navy/80 text-[10px]">{exp.role}</p>
-                                  <ul className="list-disc pl-4 mt-1 space-y-1">
-                                    {exp.bullets.map((b, idx) => (
-                                      <li key={idx} className="leading-normal">{b}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Projects Section */}
-                          {previewResume.projects.length > 0 && (
-                            <div className="mb-4">
-                              <h2 className="text-[10px] font-sans font-extrabold uppercase tracking-widest text-frenchgray border-b border-frenchgray/30 pb-0.5 mb-2">Projects</h2>
-                              {previewResume.projects.map((proj, i) => (
-                                <div key={i} className="mb-3">
-                                  <div className="flex justify-between font-bold">
-                                    <span>{proj.name} {proj.tech && <span className="font-normal font-sans text-[8px] bg-frenchgray/20 text-navy px-1 py-0.5 ml-2">{proj.tech}</span>}</span>
-                                  </div>
-                                  <ul className="list-disc pl-4 mt-1 space-y-1">
-                                    {proj.bullets.map((b, idx) => (
-                                      <li key={idx} className="leading-normal">{b}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Skills Section */}
-                          {previewResume.skills.length > 0 && (
-                            <div>
-                              <h2 className="text-[10px] font-sans font-extrabold uppercase tracking-widest text-frenchgray border-b border-frenchgray/30 pb-0.5 mb-2">Skills & Competencies</h2>
-                              <div className="space-y-1 text-[10px]">
-                                {previewResume.skills.map((sk, i) => (
-                                  <div key={i} className="flex">
-                                    <span className="font-sans font-extrabold min-w-[100px] text-frenchgray uppercase text-[8px]">{sk.category}:</span>
-                                    <span className="font-medium">{sk.items}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                      {selectedApp.has_pdf ? (
+                        <iframe
+                          src={`${API_BASE}/api/download/${selectedApp.id}/resume.pdf#toolbar=0&navpanes=0&scrollbar=1`}
+                          className="w-full flex-1 border-3 border-navy bg-white shadow-[4px_4px_0px_0px_rgba(43,45,66,1)] min-h-[500px]"
+                          title="Resume PDF Document"
+                        />
                       ) : (
-                        <div className="p-4 bg-white border-2 border-navy text-xs font-mono max-h-[400px] overflow-auto select-text">
-                          <pre>{appTexContent || "No LaTeX source loaded."}</pre>
+                        <div className="p-12 border-4 border-dashed border-frenchgray/40 text-center font-bold text-frenchgray/60 uppercase">
+                          PDF compiled document not available. Verify TeX compiler logs.
                         </div>
                       )}
                     </div>
@@ -2072,8 +1741,8 @@ export default function Home() {
 
                   {/* Tab C: Outreach Messages templates */}
                   {appDrawerTab === "outreach" && (
-                    <div className="space-y-4 animate-fade-in font-sans">
-                      <div className="flex justify-between items-center">
+                    <div className="space-y-4 animate-fade-in font-sans flex-1 flex flex-col min-h-0">
+                      <div className="flex justify-between items-center shrink-0">
                         <span className="text-[10px] font-black uppercase text-frenchgray tracking-wider">Generated outreach email/message templates</span>
                         <button
                           onClick={() => copyToClipboard(appOutreachContent, "Outreach message")}
@@ -2083,7 +1752,7 @@ export default function Home() {
                         </button>
                       </div>
                       
-                      <div className="bg-white border-3 border-navy p-5 font-semibold text-xs leading-loose text-navy shadow-[3px_3px_0px_0px_rgba(43,45,66,1)]">
+                      <div className="bg-white border-3 border-navy p-5 font-semibold text-xs leading-loose text-navy shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] flex-1 overflow-y-auto min-h-0">
                         {appOutreachContent ? (
                           <RenderMarkdown text={appOutreachContent} />
                         ) : (
@@ -2095,30 +1764,20 @@ export default function Home() {
 
                   {/* Tab D: Interview Prep guides */}
                   {appDrawerTab === "prep" && (
-                    <div className="space-y-4 animate-fade-in font-sans">
-                      <span className="text-[10px] font-black uppercase text-frenchgray tracking-wider">Interview readiness preparation checklist</span>
+                    <div className="animate-fade-in font-sans flex-1 flex flex-col min-h-0">
+                      <p className="text-[10px] font-black uppercase text-frenchgray tracking-wider leading-none mb-3">
+                        Interview Readiness Preparation Guide PDF (rendered inline)
+                      </p>
                       
-                      {prepGuideQAs.length > 0 ? (
-                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                          {prepGuideQAs.map((qa, index) => (
-                            <div key={index} className="border-2 border-navy bg-white p-4 shadow-[2px_2px_0px_0px_rgba(43,45,66,1)]">
-                              <h4 className="text-xs font-black uppercase text-navy border-b border-navy/5 pb-1 mb-2 leading-relaxed flex gap-2">
-                                <span className="text-vibrantred select-none">Q{index + 1}:</span>
-                                <span>{qa.question}</span>
-                              </h4>
-                              <p className="text-xs font-semibold leading-loose text-navy/85 whitespace-pre-line pl-4">
-                                {qa.answer}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
+                      {selectedApp.has_prep ? (
+                        <iframe
+                          src={`${API_BASE}/api/download/${selectedApp.id}/interview_readiness.pdf#toolbar=0&navpanes=0&scrollbar=1`}
+                          className="w-full flex-1 border-3 border-navy bg-white shadow-[4px_4px_0px_0px_rgba(43,45,66,1)] min-h-[500px]"
+                          title="Interview Prep Guide PDF"
+                        />
                       ) : (
-                        <div className="bg-white border-3 border-navy p-5 font-semibold text-xs leading-loose text-navy shadow-[3px_3px_0px_0px_rgba(43,45,66,1)]">
-                          {appPrepContent ? (
-                            <RenderMarkdown text={cleanLatexText(appPrepContent)} />
-                          ) : (
-                            <span className="text-frenchgray/60 uppercase text-[10px] font-black">No interview preparation guide found. Triggering and finishing the pipeline will index prep guides.</span>
-                          )}
+                        <div className="p-12 border-4 border-dashed border-frenchgray/40 text-center font-bold text-frenchgray/60 uppercase">
+                          Preparation PDF guide not available. Verify agent output.
                         </div>
                       )}
                     </div>
@@ -2127,7 +1786,7 @@ export default function Home() {
               )}
             </div>
 
-            <div className="p-6 bg-white border-t-4 border-navy flex justify-end font-sans">
+            <div className="p-6 bg-white border-t-4 border-navy flex justify-end font-sans shrink-0">
               <button
                 onClick={() => setSelectedApp(null)}
                 className="bg-navy hover:bg-frenchgray text-antiwhite font-black text-xs uppercase px-5 py-2 border-3 border-navy cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none"

@@ -8,6 +8,26 @@ def sys_path_and_cwd_context():
     old_cwd = os.getcwd()
     hiring_agent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "hiring-agent"))
     
+    # Auto-patch hiring-agent/llm_utils.py with our custom provider
+    hiring_agent_utils = os.path.join(hiring_agent_dir, "llm_utils.py")
+    source_patch = os.path.abspath(os.path.join(os.path.dirname(__file__), "hiring_agent_llm_utils.py"))
+    if os.path.exists(source_patch):
+        needs_patch = True
+        if os.path.exists(hiring_agent_utils):
+            try:
+                with open(source_patch, "r", encoding="utf-8") as f1, open(hiring_agent_utils, "r", encoding="utf-8") as f2:
+                    if f1.read() == f2.read():
+                        needs_patch = False
+            except Exception:
+                pass
+        if needs_patch:
+            print("[Hiring-Agent Wrapper] Syncing modified llm_utils.py to submodule...")
+            try:
+                import shutil
+                shutil.copy2(source_patch, hiring_agent_utils)
+            except Exception as e:
+                print(f"[Hiring-Agent Wrapper] Sync error: {e}")
+
     # Change CWD to hiring-agent
     os.chdir(hiring_agent_dir)
     sys.path.insert(0, hiring_agent_dir)
