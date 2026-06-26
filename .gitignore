@@ -1,0 +1,40 @@
+# Local env files
+.env
+backend/.env
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+ENV/
+
+# Next.js build and dependencies
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+node_modules/
+
+# Local build artifacts and outputs
+backend/output/*/
+!backend/output/.gitkeep
+backend/output/karthikeya3342_status.json
+backend/output/karthikeya_status.json
+*.pdf
+*.tex
+*.log
+*.aux
+*.out
+*.synctex.gz
+
+# System files
+.DS_Store
+Thumbs.db
+.agents/
