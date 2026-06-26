@@ -2523,5 +2523,96 @@
         "description": "We are looking for a skilled Full Stack Development Engineer to join the team at DeepMinded. In this role, you will apply technologies such as Next.js, Redis, React and TypeScript to solve interesting problems. Candidates should have 4 years of relevant experience.",
         "location": "Chicago, IL (Hybrid)",
         "type": "Contract"
+    },
+    {
+        "id": "custom-intern-1",
+        "title": "Data Science & AI Research Intern",
+        "company": "Hindsight AI",
+        "category": "Data Science",
+        "experience_years": 0,
+        "skills": [
+            "Python",
+            "PyTorch",
+            "Pandas",
+            "Scikit-Learn",
+            "SQL",
+            "Data Visualization"
+        ],
+        "description": "We are looking for a Data Science & AI Research Intern. You will work on analyzing unstructured text datasets, training custom Scikit-Learn models, running SQL queries, and preparing interactive visualizations using Python.",
+        "location": "Remote",
+        "type": "Internship"
+    },
+    {
+        "id": "custom-fresher-1",
+        "title": "Cloud & DevOps Associate Engineer (Fresher)",
+        "company": "SkyGrid Technologies",
+        "category": "Cloud & DevOps",
+        "experience_years": 0,
+        "skills": [
+            "AWS",
+            "Terraform",
+            "Docker",
+            "GitHub Actions",
+            "Linux",
+            "Kubernetes"
+        ],
+        "description": "Join SkyGrid as a Fresher Cloud & DevOps Engineer. You will help automate CI/CD pipelines using GitHub Actions, configure AWS services with Terraform, build Docker containers, and monitor Kubernetes clusters.",
+        "location": "Bangalore, India (On-site)",
+        "type": "Full-time"
+    },
+    {
+        "id": "custom-intern-2",
+        "title": "Frontend Developer Intern",
+        "company": "PixelForge Designs",
+        "category": "Frontend Development",
+        "experience_years": 0,
+        "skills": [
+            "HTML5",
+            "CSS3",
+            "JavaScript",
+            "TailwindCSS",
+            "React"
+        ],
+        "description": "PixelForge is seeking a Frontend Developer Intern. You will build highly responsive, neobrutalist UI web components, integrate TailwindCSS layouts, and hook up interactive page features using React and state management.",
+        "location": "Hyderabad, India (Hybrid)",
+        "type": "Internship"
+    },
+    {
+        "id": "custom-fresher-2",
+        "title": "Cybersecurity Analyst (Associate/Fresher)",
+        "company": "SecureNetwork Labs",
+        "category": "IT & Support",
+        "experience_years": 0,
+        "skills": [
+            "Network Security",
+            "Linux",
+            "Wireshark",
+            "Pentesting",
+            "Nmap",
+            "Cryptography"
+        ],
+        "description": "Seeking a Cybersecurity Analyst (Fresher) to perform security monitoring, packet inspection with Wireshark, vulnerability assessments, and report network risks.",
+        "location": "Austin, TX (Hybrid)",
+        "type": "Full-time"
+    },
+    {
+        "id": "custom-intern-3",
+        "title": "Embedded Systems & IoT Intern",
+        "company": "CircuitFlow Systems",
+        "category": "Robotics",
+        "experience_years": 0,
+        "skills": [
+            "C",
+            "C++",
+            "Microcontrollers",
+            "Arduino",
+            "Raspberry Pi",
+            "Sensors",
+            "I2C",
+            "SPI"
+        ],
+        "description": "CircuitFlow is looking for an Embedded Systems Intern. You will write firmware in C/C++ for Microcontrollers, interface analog and digital sensors via I2C/SPI protocols, and run board-level testing.",
+        "location": "Pune, India (On-site)",
+        "type": "Internship"
     }
 ]

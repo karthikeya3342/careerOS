@@ -372,6 +372,8 @@ export default function Home() {
   const [previousResumeText, setPreviousResumeText] = useState("");
   const [onboardStatus, setOnboardStatus] = useState("");
   const [isOnboarding, setIsOnboarding] = useState(false);
+  const [manualJdText, setManualJdText] = useState("");
+  const [isSubmittingManualJd, setIsSubmittingManualJd] = useState(false);
 
   // Job Search State
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -662,6 +664,86 @@ export default function Home() {
     } finally {
       clearInterval(statusInterval);
       setApplyingJobId(null);
+      setTimeout(() => {
+        setPipelineStatus({ stage: "Idle", details: "" });
+      }, 5000);
+    }
+  };
+
+  const handleManualApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualJdText.trim()) return;
+
+    setIsSubmittingManualJd(true);
+    setApplyingJobId("manual");
+    setPipelineLogs([
+      "SYSTEM: Initializing multi-agent pipeline...",
+      "SYSTEM: Decoupling credentials from context...",
+      "ORCHESTRATOR: Contacting Complexity Router (routing to Drafter/Verifier models)...",
+      "SYSTEM: Received raw Job Description text. Initiating Parsing Agent..."
+    ]);
+    setPipelineStatus({ stage: "Starting", details: "Parsing Job Description..." });
+    triggerToast("Application optimization started.", "info");
+
+    const statusInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/pipeline-status/${userId}`);
+        const data = await res.json();
+        if (data && data.stage) {
+          setPipelineStatus(data);
+          setPipelineLogs(prev => {
+            const lastLog = prev[prev.length - 1];
+            const newLog = `[${data.stage}] ${data.details}`;
+            if (lastLog !== newLog) {
+              return [...prev, newLog];
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error("Error polling pipeline status:", err);
+      }
+    }, 1200);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          jd_text: manualJdText
+        })
+      });
+      const data = await res.json();
+      if (data.status === "Success") {
+        setPipelineLogs(prev => [
+          ...prev,
+          "SYSTEM: LaTeX compile verified on TeXLive.net API (PDF starts with %PDF).",
+          `SUCCESS: ATS Optimization completed! ATS score: ${data.ats_score}/100.`,
+          "SYSTEM: Saving success event tag to Hindsight Cloud memory."
+        ]);
+        triggerToast(`Applied successfully! Score: ${data.ats_score}%`, "success");
+        setManualJdText("");
+        fetchApplications();
+      } else if (data.status === "Rejected") {
+        setPipelineLogs(prev => [
+          ...prev,
+          `REJECTED: Eligibility Agent returned negative alignment.`,
+          `DECISION REASON: ${data.reason}`
+        ]);
+        triggerToast("Eligibility Agent rejected alignment.", "warning");
+        fetchApplications();
+      } else {
+        setPipelineLogs(prev => [...prev, "ERROR: Pipeline execution error: " + JSON.stringify(data)]);
+        triggerToast("Pipeline returned execution error.", "error");
+      }
+    } catch (err: any) {
+      setPipelineLogs(prev => [...prev, "CONNECTION EXCEPTION: " + err.message]);
+      triggerToast("Connection error while running agent pipeline.", "error");
+    } finally {
+      clearInterval(statusInterval);
+      setApplyingJobId(null);
+      setIsSubmittingManualJd(false);
       setTimeout(() => {
         setPipelineStatus({ stage: "Idle", details: "" });
       }, 5000);
@@ -1580,6 +1662,40 @@ export default function Home() {
               <span className="bg-vibrantred text-antiwhite text-[10px] font-black uppercase px-2.5 py-1 border-2 border-navy shadow-[2px_2px_0px_0px_rgba(43,45,66,1)] tracking-wide font-sans">
                 Matches Calibrated
               </span>
+            </div>
+
+            {/* Manual Job Description Paste Option */}
+            <div className="bg-white border-4 border-navy p-5 mb-8 shadow-[4px_4px_0px_0px_rgba(239,35,60,1)] font-sans">
+              <h3 className="text-sm font-black uppercase text-navy border-b-2 border-navy pb-2 mb-3 tracking-wider flex items-center gap-1.5">
+                <span className="w-1.5 h-3.5 bg-vibrantred" />
+                Custom Job Optimization (Paste Raw Job Description)
+              </h3>
+              <p className="text-[10px] font-bold text-frenchgray uppercase mb-4 leading-normal">
+                Paste a complete Job Description text below. The backend agent will parse the company name, job title, and requirements automatically, then execute the optimization loop.
+              </p>
+              <form onSubmit={handleManualApply} className="space-y-4">
+                <textarea
+                  placeholder="Paste the full job description text here (e.g. 'We are looking for a Software Engineer at Google...')"
+                  value={manualJdText}
+                  onChange={e => setManualJdText(e.target.value)}
+                  className="w-full h-32 bg-antiwhite border-3 border-navy p-3 font-semibold focus:outline-none text-xs leading-relaxed text-navy focus:ring-2 focus:ring-vibrantred focus:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] transition-all resize-y"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={isSubmittingManualJd || !manualJdText.trim()}
+                  className="bg-vibrantred hover:bg-engorange disabled:bg-frenchgray text-antiwhite text-[10px] font-black uppercase px-5 py-2.5 border-3 border-navy shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  {isSubmittingManualJd ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Parsing & Optimizing...
+                    </>
+                  ) : (
+                    "Optimize Assets for this JD"
+                  )}
+                </button>
+              </form>
             </div>
 
             {/* Filters Bar */}
