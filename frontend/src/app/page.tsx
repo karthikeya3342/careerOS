@@ -386,6 +386,14 @@ export default function Home() {
   const [appDrawerTab, setAppDrawerTab] = useState<"metrics" | "preview" | "outreach" | "prep">("metrics");
   const [appOutreachContent, setAppOutreachContent] = useState("");
   const [isLoadingAppDetails, setIsLoadingAppDetails] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({});
+
+  const toggleSection = (idx: number) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [idx]: prev[idx] === false ? true : false
+    }));
+  };
 
   // Toast Notification Stack State
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -968,18 +976,42 @@ export default function Home() {
                 <div className="space-y-6 flex-1 overflow-auto pr-1">
                   {/* Structured Open Cards Sections */}
                   <div className="grid grid-cols-1 gap-6">
-                    {parsedSections.map((sec, i) => (
-                      <div key={i} className="border-3 border-navy p-4 shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] bg-white relative">
-                        <div className="absolute right-3 top-3 bg-navy/5 text-navy border border-navy/10 text-[9px] font-black uppercase px-1.5 py-0.5 tracking-wider font-sans">
-                          Section {i+1}
+                    {parsedSections.map((sec, i) => {
+                      const isExpanded = expandedSections[i] !== false;
+                      return (
+                        <div key={i} className="border-3 border-navy p-4 shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] bg-white relative transition-all duration-200 hover:shadow-[5px_5px_0px_0px_rgba(43,45,66,1)] hover:-translate-y-0.5">
+                          <div className="absolute right-3 top-3 bg-navy/5 text-navy border border-navy/10 text-[9px] font-black uppercase px-1.5 py-0.5 tracking-wider font-sans select-none">
+                            Section {i+1}
+                          </div>
+                          
+                          <button
+                            onClick={() => toggleSection(i)}
+                            type="button"
+                            className="w-full text-left flex items-center justify-between border-b-2 border-navy pb-1.5 mb-3 font-sans group cursor-pointer"
+                          >
+                            <h3 className="text-base font-black uppercase text-navy flex items-center gap-1.5">
+                              <span className="w-1.5 h-3 bg-vibrantred group-hover:scale-y-125 transition-transform origin-center" />
+                              {sec.title}
+                            </h3>
+                            <span className="text-navy transition-transform duration-200 transform group-hover:scale-110 pr-16">
+                              {isExpanded ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                                  <polyline points="18 15 12 9 6 15" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                                  <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                              )}
+                            </span>
+                          </button>
+                          
+                          <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? "max-h-[1200px] opacity-100 mt-2" : "max-h-0 opacity-0"}`}>
+                            <RenderMarkdown text={sec.content} />
+                          </div>
                         </div>
-                        <h3 className="text-base font-black uppercase text-navy border-b-2 border-navy pb-1.5 mb-3 flex items-center gap-1.5 font-sans">
-                          <span className="w-1.5 h-3 bg-vibrantred" />
-                          {sec.title}
-                        </h3>
-                        <RenderMarkdown text={sec.content} />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Refined Mental Model Box */}
@@ -1058,7 +1090,7 @@ export default function Home() {
                             type="text" 
                             value={name} 
                             onChange={e => setName(e.target.value)} 
-                            className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred font-bold text-xs" 
+                            className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred focus:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] transition-all font-bold text-xs" 
                             required 
                           />
                         </div>
@@ -1068,7 +1100,7 @@ export default function Home() {
                             type="email" 
                             value={email} 
                             onChange={e => setEmail(e.target.value)} 
-                            className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred font-bold text-xs" 
+                            className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred focus:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] transition-all font-bold text-xs" 
                             required 
                           />
                         </div>
@@ -1080,7 +1112,7 @@ export default function Home() {
                           value={phone} 
                           onChange={e => setPhone(e.target.value)} 
                           placeholder="6301893787" 
-                          className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred font-bold text-xs" 
+                          className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred focus:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] transition-all font-bold text-xs" 
                         />
                       </div>
                       <div>
@@ -1089,7 +1121,7 @@ export default function Home() {
                           type="text" 
                           value={education} 
                           onChange={e => setEducation(e.target.value)} 
-                          className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred font-bold text-xs" 
+                          className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred focus:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] transition-all font-bold text-xs" 
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1099,7 +1131,7 @@ export default function Home() {
                             type="text" 
                             value={cgpa} 
                             onChange={e => setCgpa(e.target.value)} 
-                            className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred font-bold text-xs" 
+                            className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred focus:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] transition-all font-bold text-xs" 
                           />
                         </div>
                         <div>
@@ -1108,7 +1140,7 @@ export default function Home() {
                             type="text" 
                             value={experience} 
                             onChange={e => setExperience(e.target.value)} 
-                            className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred font-bold text-xs" 
+                            className="w-full border-3 border-navy p-2 bg-white focus:outline-none focus:ring-2 focus:ring-vibrantred focus:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] transition-all font-bold text-xs" 
                           />
                         </div>
                       </div>
@@ -1133,7 +1165,7 @@ export default function Home() {
                         ].map(c => {
                           const isSynced = c.val && c.val.startsWith("http");
                           return (
-                            <div key={c.key} className="flex items-center border-3 border-navy bg-white">
+                            <div key={c.key} className="flex items-center border-3 border-navy bg-white focus-within:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] focus-within:ring-2 focus-within:ring-vibrantred transition-all">
                               <span className="bg-navy border-r-3 border-navy text-antiwhite p-2 shrink-0 text-[10px] font-black min-w-[90px] text-center uppercase flex items-center justify-center gap-1">
                                 {c.key}
                               </span>
@@ -1163,7 +1195,7 @@ export default function Home() {
                           placeholder="Paste details of projects, past roles, or generic achievements here..." 
                           value={previousResumeText} 
                           onChange={e => setPreviousResumeText(e.target.value)} 
-                          className="w-full h-36 border-3 border-navy p-2 bg-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-vibrantred leading-relaxed"
+                          className="w-full h-36 border-3 border-navy p-2 bg-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-vibrantred focus:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] transition-all leading-relaxed"
                         />
                       </div>
                       
