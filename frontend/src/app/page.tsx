@@ -361,9 +361,9 @@ export default function Home() {
   const [email, setEmail] = useState("karthikeya.maddi3342@gmail.com");
   const [phone, setPhone] = useState("6301893787");
   const [github, setGithub] = useState("https://github.com/karthikeya3342");
-  const [leetcode, setLeetcode] = useState("");
-  const [codeforces, setCodeforces] = useState("");
-  const [codechef, setCodechef] = useState("");
+  const [leetcode, setLeetcode] = useState("https://leetcode.com/karthikeya3342");
+  const [codeforces, setCodeforces] = useState("https://codeforces.com/profile/karthikeya3342");
+  const [codechef, setCodechef] = useState("https://www.codechef.com/users/karthikeya3342");
   const [linkedin, setLinkedin] = useState("https://www.linkedin.com/in/venkata-sai-karthikeya-maddi-ab4433315");
   const [portfolio, setPortfolio] = useState("https://portfolio-karthikeya3342.vercel.app/");
   const [education, setEducation] = useState("B.Tech in Computer Science and Engineering, IIITDM Kurnool (Minor: Robotics & Automation, Class of 2028)");
