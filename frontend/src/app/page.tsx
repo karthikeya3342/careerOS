@@ -356,19 +356,19 @@ export default function Home() {
   const [formStep, setFormStep] = useState<"basics" | "crawlers" | "resume">("basics");
 
   // Onboarding Form State
-  const [userId, setUserId] = useState("karthikeya3342");
+  const [userId, setUserId] = useState("karthikeya");
   const [name, setName] = useState("Karthikeya");
   const [email, setEmail] = useState("karthikeya.maddi3342@gmail.com");
   const [phone, setPhone] = useState("6301893787");
-  const [github, setGithub] = useState("https://github.com/karthikeya3342");
-  const [leetcode, setLeetcode] = useState("https://leetcode.com/karthikeya3342");
-  const [codeforces, setCodeforces] = useState("https://codeforces.com/profile/karthikeya3342");
-  const [codechef, setCodechef] = useState("https://www.codechef.com/users/karthikeya3342");
-  const [linkedin, setLinkedin] = useState("https://www.linkedin.com/in/karthikeya3342");
+  const [github, setGithub] = useState("");
+  const [leetcode, setLeetcode] = useState("");
+  const [codeforces, setCodeforces] = useState("");
+  const [codechef, setCodechef] = useState("");
+  const [linkedin, setLinkedin] = useState("https://www.linkedin.com/in/venkata-sai-karthikeya-maddi-ab4433315");
   const [portfolio, setPortfolio] = useState("https://portfolio-karthikeya3342.vercel.app/");
   const [education, setEducation] = useState("B.Tech in Computer Science and Engineering, IIITDM Kurnool (Minor: Robotics & Automation, Class of 2028)");
   const [cgpa, setCgpa] = useState("CPI: 8.97/10.0 (after 4 semesters)");
-  const [experience, setExperience] = useState("Undergrad Researcher in Robotics & ML at IIITDM Kurnool");
+  const [experience, setExperience] = useState("");
   const [previousResumeText, setPreviousResumeText] = useState("");
   const [onboardStatus, setOnboardStatus] = useState("");
   const [isOnboarding, setIsOnboarding] = useState(false);
@@ -853,7 +853,7 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input 
                     type="text" 
-                    placeholder="Enter User ID (e.g. karthikeya3342)" 
+                    placeholder="Enter User ID (e.g. karthikeya)" 
                     value={landingUserId}
                     onChange={e => setLandingUserId(e.target.value)}
                     className="bg-antiwhite text-navy border-3 border-navy px-4 py-3 font-black focus:outline-none text-xs sm:text-sm flex-1 focus:ring-2 focus:ring-vibrantred focus:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] transition-all placeholder:text-frenchgray/75"
