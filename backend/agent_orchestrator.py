@@ -737,18 +737,26 @@ async def process_job_application(user_id: str, jd_text: str) -> dict:
             # Prepend the raw, uncompressed onboarding doc so the LLM has complete context (projects, experiences like ASKD, etc.)
             profile_summary = f"RAW CANDIDATE PROFILE DETAILS:\n{text}\n\n---\nAdditional Context:\n" + profile_summary
             
-            # Parse contact details
-            name_match = re.search(r"-\s*Name:\s*(.*)", text)
-            email_match = re.search(r"-\s*Email:\s*(.*)", text)
-            linkedin_match = re.search(r"-\s*LinkedIn:\s*(.*)", text)
-            github_match = re.search(r"-\s*Username:\s*(.*)", text)
-            phone_match = re.search(r"-\s*Phone:\s*(.*)", text) # Check if phone is in onboarding doc
+            # Parse contact details using robust regex supporting markdown bold tags
+            name_match = re.search(r"-\s*\**Name\**:\s*(.*)", text, re.IGNORECASE)
+            email_match = re.search(r"-\s*\**Email\**:\s*(.*)", text, re.IGNORECASE)
+            linkedin_match = re.search(r"-\s*\**LinkedIn\**:\s*(.*)", text, re.IGNORECASE)
+            github_match = re.search(r"-\s*\**(GitHub|Username)\**:\s*(.*)", text, re.IGNORECASE)
+            phone_match = re.search(r"-\s*\**(Phone|Phone Number)\**:\s*(.*)", text, re.IGNORECASE)
             
-            if name_match: candidate_name = name_match.group(1).strip()
-            if email_match: candidate_email = email_match.group(1).strip()
-            if linkedin_match: candidate_linkedin = linkedin_match.group(1).strip()
-            if github_match: candidate_github = f"github.com/{github_match.group(1).strip()}"
-            if phone_match: candidate_phone = phone_match.group(1).strip()
+            if name_match: 
+                candidate_name = name_match.group(1).strip()
+            if email_match: 
+                candidate_email = email_match.group(1).strip()
+            if linkedin_match: 
+                candidate_linkedin = linkedin_match.group(1).strip()
+            if github_match: 
+                val = github_match.group(2).strip()
+                if "github.com/" in val:
+                    val = val.split("github.com/")[-1].strip()
+                candidate_github = f"github.com/{val}" if not val.startswith("github.com/") else val
+            if phone_match: 
+                candidate_phone = phone_match.group(2).strip()
     except Exception as e:
         print(f"Failed to fetch uncompressed onboarding document: {e}")
         
