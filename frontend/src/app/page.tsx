@@ -360,7 +360,7 @@ export default function Home() {
   const [name, setName] = useState("Karthikeya");
   const [email, setEmail] = useState("karthikeya.maddi3342@gmail.com");
   const [phone, setPhone] = useState("6301893787");
-  const [github, setGithub] = useState("");
+  const [github, setGithub] = useState("https://github.com/karthikeya3342");
   const [leetcode, setLeetcode] = useState("");
   const [codeforces, setCodeforces] = useState("");
   const [codechef, setCodechef] = useState("");
