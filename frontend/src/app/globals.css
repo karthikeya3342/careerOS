@@ -186,3 +186,51 @@ code, pre, .font-mono {
   transform-origin: 50% 50%;
 }
 
+/* Retro Dot Grid Background */
+.retro-dot-grid {
+  background-image: radial-gradient(rgba(141, 153, 174, 0.15) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+/* Floating animation for agent showcase card */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.5deg);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Grid scan bar animation */
+@keyframes gridScan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.animate-grid-scan {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-grid-scan::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(239, 35, 60, 0.4);
+  box-shadow: 0 0 12px 4px rgba(239, 35, 60, 0.6);
+  pointer-events: none;
+  animation: gridScan 6s linear infinite;
+}
+

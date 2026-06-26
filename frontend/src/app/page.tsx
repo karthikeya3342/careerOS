@@ -342,9 +342,15 @@ const RadialProgress = ({ score, size = 44, strokeWidth = 4 }: { score: number; 
 
 export default function Home() {
   // Navigation & Memory View Tab States
-  const [activeTab, setActiveTab] = useState<"profile" | "jobs" | "applications">("profile");
+  const [activeTab, setActiveTab] = useState<"landing" | "profile" | "jobs" | "applications">("landing");
   const [loadedProfile, setLoadedProfile] = useState<{ profile_summary: string; preferences: string } | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [landingUserId, setLandingUserId] = useState("");
+  const [simulatedLogs, setSimulatedLogs] = useState<string[]>([
+    "SYSTEM: Ingestion pipeline standby.",
+    "SYSTEM: Awaiting command console entry."
+  ]);
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
   // Ingestion Form Step States (Switched via Tabs)
   const [formStep, setFormStep] = useState<"basics" | "crawlers" | "resume">("basics");
@@ -517,6 +523,30 @@ export default function Home() {
       loadApplicationDetails(selectedApp.id);
     }
   }, [selectedApp]);
+
+  useEffect(() => {
+    if (activeTab !== "landing") return;
+    const mockEvents = [
+      "[02:14:10] ELIGIBILITY_AGENT: Calibrating profile metrics against ML Engineer Internship specification...",
+      "[02:14:12] DRAFTER_AGENT: Adapting resume bullet points with XYZ format...",
+      "[02:14:14] VERIFIER_AGENT: Running ATS parser scoring feedback loop... current alignment: 83%",
+      "[02:14:16] LaTeX_COMPILER: Initiating pdflatex compilation on TeXLive.net API...",
+      "[02:14:18] LaTeX_COMPILER: PDF generated successfully (129 KB). Saving to output folder...",
+      "[02:14:20] OUTREACH_AGENT: Formatting personalized LinkedIn message and Cold Email templates...",
+      "[02:14:22] ORCHESTRATOR: Career tailoring pipeline completed successfully.",
+      "[02:14:25] SYSTEM: Standby for next instruction."
+    ];
+    let idx = 0;
+    const interval = setInterval(() => {
+      setSimulatedLogs(prev => {
+        const next = [...prev, mockEvents[idx]];
+        if (next.length > 5) next.shift(); // keep it clean
+        return next;
+      });
+      idx = (idx + 1) % mockEvents.length;
+    }, 2800);
+    return () => clearInterval(interval);
+  }, [activeTab]);
 
   const handleOnboard = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -758,16 +788,312 @@ export default function Home() {
         </div>
       )}
 
-      {/* Header Panel */}
-      <header className="bg-navy border-4 border-navy shadow-[6px_6px_0px_0px_rgba(43,45,66,1)] p-4 sm:p-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center text-antiwhite gap-4 relative overflow-hidden">
-        <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-r from-transparent via-frenchgray/10 to-vibrantred/20 pointer-events-none skew-x-12" />
-        <div className="z-10">
-          <div className="flex items-center gap-2">
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight uppercase">CareerOS</h1>
-            <span className="bg-vibrantred text-antiwhite text-[10px] font-black uppercase px-2 py-0.5 border border-navy tracking-widest animate-pulse">v2.5</span>
-          </div>
-          <p className="text-frenchgray font-bold text-xs sm:text-sm mt-1 tracking-wider uppercase">Autonomous Multi-Agent Career Optimization Engine</p>
+      {activeTab === "landing" ? (
+        <div className="max-w-7xl mx-auto py-4 space-y-12 animate-fade-in p-2 sm:p-6 retro-dot-grid">
+          {/* Landing Navbar */}
+          <nav className="bg-navy border-4 border-navy shadow-[6px_6px_0px_0px_rgba(43,45,66,1)] p-4 flex justify-between items-center text-antiwhite relative overflow-hidden">
+            <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setActiveTab("landing")}>
+              <span className="text-xl sm:text-2xl font-black uppercase tracking-tight">CareerOS</span>
+              <span className="bg-vibrantred text-[8px] font-black uppercase px-1.5 py-0.5 border border-navy tracking-widest">v2.5</span>
+            </div>
+            <div className="flex items-center gap-4">
+              {/* Top GitHub Link */}
+              <a 
+                href="https://github.com/karthikeya3342/careerOS" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hidden sm:flex items-center gap-1.5 bg-white text-navy border-2 border-navy text-[10px] font-black uppercase px-2.5 py-1.5 shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                </svg>
+                GitHub Source
+              </a>
+              <button
+                onClick={() => setActiveTab("profile")}
+                className="bg-vibrantred hover:bg-engorange text-antiwhite text-xs font-black uppercase px-4 py-2 border-3 border-navy shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
+              >
+                Enter Command Center
+              </button>
+            </div>
+          </nav>
+
+          {/* Hero Section */}
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+            {/* Left Column: Headings & ID launch */}
+            <div className="lg:col-span-7 bg-white border-4 border-navy p-6 sm:p-8 shadow-[8px_8px_0px_0px_rgba(43,45,66,1)] flex flex-col justify-between">
+              <div>
+                <div className="inline-block bg-vibrantred/10 text-vibrantred border border-vibrantred/30 text-[9px] font-black uppercase px-2.5 py-1 tracking-widest mb-4">
+                  Autonomous Drafter-Verifier Engine
+                </div>
+                <h2 className="text-3xl sm:text-5xl font-black uppercase text-navy leading-none tracking-tight">
+                  Autonomous Multi-Agent Career Command Center
+                </h2>
+                <p className="text-frenchgray font-semibold text-xs sm:text-sm uppercase tracking-wide mt-2">
+                  Optimize your professional index vectors, tailors print-ready resumes, and compiles prep guides.
+                </p>
+                <div className="mt-6 border-l-4 border-navy pl-4 space-y-3.5 text-xs font-bold leading-relaxed text-navy/90">
+                  <p>
+                    ✓ <strong className="text-navy">XYZ Tailoring Matrix</strong>: Formulate bullet points using Google's formula (<em>Accomplished [X] as measured by [Y] by doing [Z]</em>).
+                  </p>
+                  <p>
+                    ✓ <strong className="text-navy">Hindsight Memory Integration</strong>: Syncs candidate profiles, crawl socials, and retains memory banks semantically.
+                  </p>
+                  <p>
+                    ✓ <strong className="text-navy">ATS Feedback Loop</strong>: Verifier agent scores CV matches and passes optimization feedback back to the Drafter.
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick-Access Entry Console */}
+              <div className="mt-8 border-t-4 border-navy pt-6">
+                <h4 className="text-[10px] font-black uppercase text-frenchgray tracking-wider mb-2.5">
+                  Launch Agent Workspace Console
+                </h4>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input 
+                    type="text" 
+                    placeholder="Enter User ID (e.g. karthikeya3342)" 
+                    value={landingUserId}
+                    onChange={e => setLandingUserId(e.target.value)}
+                    className="bg-antiwhite text-navy border-3 border-navy px-4 py-3 font-black focus:outline-none text-xs sm:text-sm flex-1 focus:ring-2 focus:ring-vibrantred focus:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] transition-all placeholder:text-frenchgray/75"
+                  />
+                  <button 
+                    onClick={() => {
+                      if (landingUserId.trim()) {
+                        setUserId(landingUserId.trim());
+                      }
+                      setActiveTab("profile");
+                    }}
+                    id="recall-profile-btn"
+                    className="bg-vibrantred hover:bg-engorange text-antiwhite text-xs font-black uppercase px-6 py-3.5 border-3 border-navy shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    Launch Console
+                  </button>
+                </div>
+                <p className="text-[9px] text-frenchgray font-semibold mt-2 uppercase">
+                  * Enter any User ID to recall their vector memory banks and resume draft pipelines.
+                </p>
+              </div>
+            </div>
+
+            {/* Right Column: Visual Simulator Terminal */}
+            <div className="lg:col-span-5 bg-navy text-antiwhite border-4 border-navy shadow-[8px_8px_0px_0px_rgba(239,35,60,1)] p-5 flex flex-col justify-between animate-float animate-grid-scan relative min-h-[350px]">
+              <div>
+                <div className="flex justify-between items-center border-b border-frenchgray/30 pb-3.5 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 bg-vibrantred rounded-full animate-ping" />
+                    <span className="text-[10px] font-black uppercase tracking-wider text-frenchgray">Multi-Agent Workspace Simulator</span>
+                  </div>
+                  <span className="text-[8px] bg-frenchgray/20 text-frenchgray font-black uppercase px-1.5 py-0.5">LOOP ACTIVE</span>
+                </div>
+                
+                {/* Simulation logs screen */}
+                <div className="font-mono text-[11px] leading-loose space-y-2.5 text-frenchgray">
+                  {simulatedLogs.map((log, i) => {
+                    let color = "text-frenchgray";
+                    if (log.includes("SUCCESS") || log.includes("completed")) color = "text-green-400 font-extrabold";
+                    else if (log.includes("COMPILER")) color = "text-antiwhite";
+                    else if (log.includes("DRAFTER") || log.includes("ELIGIBILITY")) color = "text-amber-400";
+                    
+                    return (
+                      <div key={i} className="flex gap-2">
+                        <span className="text-vibrantred font-bold select-none">&gt;</span>
+                        <span className={color}>{log}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="border-t border-frenchgray/20 pt-4 mt-6 flex justify-between items-center text-[10px] font-bold text-frenchgray uppercase">
+                <span>Drafter: Gemini 3.1 Flash Lite</span>
+                <span>Verifier: Llama 3.3 70B</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Interactive Agent Flowchart Diagram */}
+          <section className="bg-white border-4 border-navy p-6 shadow-[8px_8px_0px_0px_rgba(43,45,66,1)]">
+            <h3 className="text-sm font-black uppercase text-navy border-b-2 border-navy pb-2 mb-6 tracking-wider flex items-center gap-1.5">
+              <span className="w-1.5 h-3.5 bg-vibrantred" />
+              Multi-Agent Pipeline Architecture Flow
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-center font-sans text-xs uppercase font-extrabold">
+              {[
+                { title: "1. Ingestion Sync", desc: "Crawls GitHub, LeetCode, Codeforces" },
+                { title: "2. Complexity Router", desc: "Routes prompts by token constraints" },
+                { title: "3. Drafter Agent", desc: "Generates tailored LaTeX source code" },
+                { title: "4. Verifier Agent", desc: "Calculates ATS matches & feedback" },
+                { title: "5. TeX Compiler", desc: "Generates PDF resume via TeX API" }
+              ].map((node, i) => (
+                <div key={i} className="relative flex flex-col justify-between border-3 border-navy p-4 bg-antiwhite shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                  {i < 4 && (
+                    <div className="hidden md:block absolute top-1/2 -right-4 w-4 h-1 bg-navy -translate-y-1/2 z-0" />
+                  )}
+                  <div className="bg-navy text-antiwhite w-6 h-6 rounded-none flex items-center justify-center mx-auto mb-2 text-[10px]">
+                    {i + 1}
+                  </div>
+                  <h4 className="text-navy text-[11px] font-black">{node.title}</h4>
+                  <p className="text-frenchgray text-[9px] lowercase font-semibold mt-1 leading-snug">{node.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Capabilities Features Grid */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                title: "Social Crawlers & Hindsight Sync",
+                desc: "Indices public commits, LeetCode rank progress, and Codeforces handles. Builds and compiles comprehensive personal history summaries stored securely in hindsight vector databases.",
+                tag: "Ingestion"
+              },
+              {
+                title: "Self-Correcting LaTeX Compilation",
+                desc: "Pushes optimized latex documents to online rendering systems. Reads build outputs and automatically runs error logs through correction agents to debug layouts.",
+                tag: "Compilation"
+              },
+              {
+                title: "High-Value Application Outputs",
+                desc: "Generates ATS-aligned resumes, professional cold outreach email copies, custom prep guides (STAR method questions), and click-to-open Overleaf editing pages.",
+                tag: "Asset Synthesis"
+              }
+            ].map((feat, i) => (
+              <div key={i} className="bg-white border-4 border-navy p-5 shadow-[6px_6px_0px_0px_rgba(43,45,66,1)] flex flex-col justify-between hover:shadow-[8px_8px_0px_0px_rgba(43,45,66,1)] hover:-translate-y-0.5 transition-all">
+                <div>
+                  <div className="flex justify-between items-center border-b border-navy/10 pb-2 mb-3">
+                    <span className="text-[10px] font-black uppercase text-frenchgray tracking-wider">{feat.tag}</span>
+                    <span className="w-2.5 h-2.5 bg-navy rounded-none" />
+                  </div>
+                  <h4 className="text-sm font-black uppercase text-navy">{feat.title}</h4>
+                  <p className="text-xs font-semibold leading-relaxed text-frenchgray mt-2 lowercase">{feat.desc}</p>
+                </div>
+              </div>
+            ))}
+          </section>
+
+          {/* Technical Stack Section */}
+          <section className="bg-white border-4 border-navy p-6 shadow-[8px_8px_0px_0px_rgba(43,45,66,1)]">
+            <h3 className="text-sm font-black uppercase text-navy border-b-2 border-navy pb-2 mb-4 tracking-wider flex items-center gap-1.5">
+              <span className="w-1.5 h-3.5 bg-vibrantred" />
+              Technical Stack Specifications
+            </h3>
+            <div className="flex flex-wrap gap-2.5">
+              {[
+                "Next.js 16 (React 19 App)",
+                "FastAPI / Python 3.10",
+                "Gemini 3.1 Flash Lite (Drafter)",
+                "Llama-3.3-70B-Versatile (Verifier)",
+                "Hindsight Cloud (Vector DB)",
+                "Cascadeflow Orchestrator",
+                "Tailwind CSS v4"
+              ].map((tech, i) => (
+                <span key={i} className="bg-antiwhite border-2 border-navy text-navy text-[10px] font-black uppercase px-3 py-1.5 shadow-[1.5px_1.5px_0px_0px_rgba(0,0,0,1)]">
+                  {tech}
+                </span>
+              ))}
+            </div>
+          </section>
+
+          {/* FAQ Accordion Section */}
+          <section className="bg-white border-4 border-navy p-6 shadow-[8px_8px_0px_0px_rgba(43,45,66,1)]">
+            <h3 className="text-sm font-black uppercase text-navy border-b-2 border-navy pb-2 mb-6 tracking-wider flex items-center gap-1.5">
+              <span className="w-1.5 h-3.5 bg-vibrantred" />
+              Technical FAQ & Specifications
+            </h3>
+            
+            <div className="space-y-4">
+              {[
+                {
+                  q: "How does the self-correcting TeX compiler work?",
+                  a: "The LaTeX Drafter outputs raw TeX markup. The compiler tries to build it using the TeXLive API. If compilation fails, the Verifier Agent parses the stderr log, pinpoints the line numbers of undefined control sequences or unescaped characters, and runs a self-correction pass using a specialized parser LLM before retrying."
+                },
+                {
+                  q: "What is the Drafter-Verifier agent loop?",
+                  a: "To ensure high alignment, the Drafter Agent generates resume bullets based on candidate details and target JDs. The Verifier Agent compiles and runs a semantic ATS evaluation match scoring loop. If the alignment score is below 80/100, the Verifier generates a feedback JSON containing structural gaps, sending it back to the Drafter for iterative refinement (max 3 loops)."
+                },
+                {
+                  q: "How does Hindsight Vector Memory retrieve records?",
+                  a: "During onboarding, candidate details and crawled repositories are synthesized and saved in the Hindsight Cloud Vector DB. When you request optimization, the orchestrator queries Hindsight with job description keywords, retrieving only the most semantically relevant projects and experiences so the Drafter stays within context length limits while highlighting your best matching accomplishments."
+                }
+              ].map((faq, i) => {
+                const isFaqExpanded = expandedFaq === i;
+                return (
+                  <div key={i} className="border-3 border-navy bg-antiwhite p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                    <button 
+                      onClick={() => setExpandedFaq(isFaqExpanded ? null : i)}
+                      type="button"
+                      className="w-full flex justify-between items-center text-left font-black uppercase text-xs text-navy tracking-wider cursor-pointer group"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-vibrantred font-black">Q:</span>
+                        {faq.q}
+                      </span>
+                      <span className="transition-transform duration-150 transform group-hover:scale-110">
+                        {isFaqExpanded ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                            <polyline points="18 15 12 9 6 15" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        )}
+                      </span>
+                    </button>
+                    <div className={`overflow-hidden transition-all duration-200 ${isFaqExpanded ? "max-h-[200px] opacity-100 mt-3 border-t-2 border-navy/10 pt-3" : "max-h-0 opacity-0"}`}>
+                      <p className="text-xs font-semibold leading-relaxed text-frenchgray lowercase">
+                        {faq.a}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* System Metrics Stats Panel */}
+          <section className="grid grid-cols-3 gap-4">
+            {[
+              { key: "Sync Profiles", val: "14,208" },
+              { key: "Compile Success", val: "99.2%" },
+              { key: "Avg. Match Score", val: "87.5%" }
+            ].map((stat, i) => (
+              <div key={i} className="bg-white border-3 border-navy p-3.5 shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] text-center">
+                <span className="text-[9px] font-black uppercase text-frenchgray tracking-wider block">{stat.key}</span>
+                <span className="text-base sm:text-xl font-black uppercase text-navy mt-1 block">{stat.val}</span>
+              </div>
+            ))}
+          </section>
+
+          {/* CTA Footer */}
+          <footer className="bg-navy border-4 border-navy shadow-[6px_6px_0px_0px_rgba(43,45,66,1)] p-6 text-center text-antiwhite relative overflow-hidden">
+            <h4 className="text-lg sm:text-xl font-black uppercase">Ready to calibrate your career assets?</h4>
+            <p className="text-frenchgray text-xs font-semibold uppercase mt-1">
+              Synchronize public data profiles and run your ATS optimization pipeline.
+            </p>
+            <button
+              onClick={() => setActiveTab("profile")}
+              className="mt-4 bg-vibrantred hover:bg-engorange text-antiwhite text-xs font-black uppercase px-6 py-2.5 border-3 border-navy shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer inline-block"
+            >
+              Access Agent Console
+            </button>
+          </footer>
         </div>
+      ) : (
+        <>
+          {/* Header Panel */}
+          <header className="bg-navy border-4 border-navy shadow-[6px_6px_0px_0px_rgba(43,45,66,1)] p-4 sm:p-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center text-antiwhite gap-4 relative overflow-hidden">
+            <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-r from-transparent via-frenchgray/10 to-vibrantred/20 pointer-events-none skew-x-12" />
+            <div className="z-10">
+              <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setActiveTab("landing")}>
+                <h1 className="text-3xl sm:text-4xl font-black tracking-tight uppercase">CareerOS</h1>
+                <span className="bg-vibrantred text-antiwhite text-[10px] font-black uppercase px-2 py-0.5 border border-navy tracking-widest animate-pulse">v2.5</span>
+              </div>
+              <p className="text-frenchgray font-bold text-xs sm:text-sm mt-1 tracking-wider uppercase">Autonomous Multi-Agent Career Optimization Engine</p>
+            </div>
         <div className="z-10 flex items-center gap-3 bg-antiwhite text-navy border-3 border-navy shadow-[3px_3px_0px_0px_rgba(239,35,60,1)] px-4 py-2 text-xs font-black uppercase tracking-wider">
           <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-ping" />
           Hindsight Vector Active
@@ -1791,6 +2117,7 @@ export default function Home() {
           </div>
         </>
       )}
+      </>)}
 
     </div>
   );
