@@ -1291,45 +1291,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Live Pipeline Terminal Console (Horizontal Split overlay when applying) */}
-            {pipelineLogs.length > 0 && (
-              <div className="bg-navy border-4 border-navy text-antiwhite p-4 mb-6 shadow-[4px_4px_0px_0px_rgba(43,45,66,1)] font-mono text-xs">
-                <div className="flex justify-between items-center border-b border-frenchgray/30 pb-2 mb-3 font-sans">
-                  <div className="flex items-center gap-2">
-                    <Icons.Terminal />
-                    <span className="text-[10px] font-black uppercase tracking-wider text-frenchgray">Pipeline Terminal Output</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => copyToClipboard(pipelineLogs.join("\n"), "Logs")}
-                      className="text-[9px] font-black uppercase text-frenchgray hover:text-antiwhite border border-frenchgray/20 px-2 py-0.5 transition-all flex items-center gap-1 cursor-pointer"
-                    >
-                      <Icons.Copy /> Copy
-                    </button>
-                    <button onClick={() => setPipelineLogs([])} className="text-[9px] font-black uppercase text-frenchgray hover:text-antiwhite border border-frenchgray/20 px-2 py-0.5 transition-all cursor-pointer">Clear</button>
-                  </div>
-                </div>
-                <div className="space-y-1.5 max-h-[160px] overflow-auto leading-relaxed select-text pr-1">
-                  {pipelineLogs.map((log, index) => {
-                    let logColor = "text-antiwhite";
-                    if (log.includes("SUCCESS")) logColor = "text-green-400 font-extrabold";
-                    else if (log.includes("REJECTED")) logColor = "text-vibrantred font-extrabold";
-                    else if (log.includes("ERROR")) logColor = "text-vibrantred animate-pulse";
-                    else if (log.includes("ORCHESTRATOR") || log.includes("SYSTEM")) logColor = "text-frenchgray";
-                    
-                    return (
-                      <div key={index} className="flex gap-2">
-                        <span className="text-frenchgray select-none">&gt;</span>
-                        <span className={logColor}>
-                          {log}
-                        </span>
-                      </div>
-                    );
-                  })}
-                  <div ref={terminalEndRef} />
-                </div>
-              </div>
-            )}
+
 
             {/* Jobs Board Grid Layout */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
