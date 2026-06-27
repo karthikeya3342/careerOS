@@ -1,0 +1,44 @@
+# ── Python ─────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Virtual environment ────────────────────────────────────────────
+venv/
+.venv/
+env/
+
+# ── Secrets / local config ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Playwright / Patchright browser profiles ───────────────────────
+# These persist cookies + Akamai trust tokens. Personal browser state,
+# must NEVER be committed or shared.
+_*_profile/
+
+# ── Scrape exports + build artifacts ───────────────────────────────
+jobs_*.xlsx
+job_scout.zip
+
+# ── Debug screenshots / HTML dumps (root-only — keep static/, public/) ─
+/*.png
+/*.jpg
+/*.jpeg
+_*_debug.html
+
+# ── IDE / OS ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Claude Code project context (kept local, not for the public repo) ──
+CLAUDE.md
