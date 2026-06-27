@@ -13,6 +13,8 @@ interface Job {
   description: string;
   location: string;
   type: string;
+  apply_url?: string;
+  starred?: boolean;
 }
 
 interface Application {
@@ -63,18 +65,18 @@ export default function Home() {
   const [formStep, setFormStep] = useState<"basics" | "crawlers" | "resume">("basics");
 
   // Onboarding Form State
-  const [userId, setUserId] = useState("karthikeya");
-  const [name, setName] = useState("Karthikeya");
-  const [email, setEmail] = useState("karthikeya.maddi3342@gmail.com");
-  const [phone, setPhone] = useState("6301893787");
-  const [github, setGithub] = useState("https://github.com/karthikeya3342");
-  const [leetcode, setLeetcode] = useState("https://leetcode.com/karthikeya3342");
-  const [codeforces, setCodeforces] = useState("https://codeforces.com/profile/karthikeya3342");
-  const [codechef, setCodechef] = useState("https://www.codechef.com/users/karthikeya3342");
-  const [linkedin, setLinkedin] = useState("https://www.linkedin.com/in/venkata-sai-karthikeya-maddi-ab4433315");
-  const [portfolio, setPortfolio] = useState("https://portfolio-karthikeya3342.vercel.app/");
-  const [education, setEducation] = useState("B.Tech in Computer Science and Engineering, IIITDM Kurnool (Minor: Robotics & Automation, Class of 2028)");
-  const [cgpa, setCgpa] = useState("CPI: 8.97/10.0 (after 4 semesters)");
+  const [userId, setUserId] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [github, setGithub] = useState("");
+  const [leetcode, setLeetcode] = useState("");
+  const [codeforces, setCodeforces] = useState("");
+  const [codechef, setCodechef] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [portfolio, setPortfolio] = useState("");
+  const [education, setEducation] = useState("");
+  const [cgpa, setCgpa] = useState("");
   const [experience, setExperience] = useState("");
   const [previousResumeText, setPreviousResumeText] = useState("");
   const [onboardStatus, setOnboardStatus] = useState("");
@@ -87,6 +89,18 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    const saveSupabaseEmail = async (email: string, uId: string) => {
+      try {
+        await fetch(`${API_BASE}/api/user/save-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, user_id: uId })
+        });
+      } catch (e) {
+        console.error("Failed to save email:", e);
+      }
+    };
+
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -95,20 +109,24 @@ export default function Home() {
         setUserId(emailPrefix);
         setEmail(session.user.email || "");
         setActiveTab("profile");
+        if (session.user.email) {
+          saveSupabaseEmail(session.user.email, emailPrefix);
+        }
       }
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         const emailPrefix = session.user.email?.split("@")[0] || "karthikeya";
         setUserId(emailPrefix);
         setEmail(session.user.email || "");
-        setActiveTab("profile");
+        if (session.user.email) {
+          saveSupabaseEmail(session.user.email, emailPrefix);
+        }
       } else {
-        setUserId("karthikeya"); // reset to default candidate ID
-        setActiveTab("landing");
+        setUserId(""); // reset on logout — no profile fetch for unauthenticated users
       }
     });
 
@@ -119,8 +137,13 @@ export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
+  const [availableLocations, setAvailableLocations] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [totalJobs, setTotalJobs] = useState(0);
+  const [isScraping, setIsScraping] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
   // Application Pipeline State
   const [applications, setApplications] = useState<Application[]>([]);
@@ -149,7 +172,7 @@ export default function Home() {
   const terminalEndRef = useRef<HTMLDivElement>(null);
   
   // Configuration API base url loaded from Env variables
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000";
 
   // Show a toast message helper
   const triggerToast = (message: string, type: Toast["type"] = "info") => {
@@ -172,13 +195,125 @@ export default function Home() {
     try {
       const q = searchTerm ? `&q=${encodeURIComponent(searchTerm)}` : "";
       const cat = selectedCategory ? `&category=${encodeURIComponent(selectedCategory)}` : "";
-      const res = await fetch(`${API_BASE}/api/jobs/discover?page=${page}&limit=6${q}${cat}`);
+      const loc = selectedLocation ? `&location=${encodeURIComponent(selectedLocation)}` : "";
+      const starred = showStarredOnly ? `&starred_only=true` : "";
+      const res = await fetch(`${API_BASE}/api/jobs/discover?page=${page}&limit=6${q}${cat}${loc}${starred}`);
       const data = await res.json();
       setJobs(data.jobs || []);
       setTotalJobs(data.total || 0);
+      setAvailableLocations(data.locations || []);
     } catch (e) {
       console.error("Error fetching jobs:", e);
       triggerToast("Failed to fetch opportunities board.", "error");
+    }
+  };
+
+  // Run AI job scraping agent
+  const handleScrapeJobs = async () => {
+    setIsScraping(true);
+    triggerToast("AI Agent is recalling preferences & analyzing profile...", "info");
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/scrape`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === "success") {
+        triggerToast(`Scraped & consolidated ${data.new_jobs_count} new tailored jobs!`, "success");
+        fetchJobs();
+      } else {
+        throw new Error(data.detail || "Scrape failed");
+      }
+    } catch (e: any) {
+      console.error(e);
+      triggerToast(`Failed to run job scraping agent: ${e.message}`, "error");
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
+  // Trigger manual test digest email
+  const handleSendTestEmail = async () => {
+    setIsSendingTest(true);
+    triggerToast("Compiling opportunities and sending test digest email...", "info");
+    try {
+      const res = await fetch(`${API_BASE}/api/user/test-email?user_id=${encodeURIComponent(userId)}`, {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (res.ok && data.status === "success") {
+        triggerToast("Daily digest test email successfully delivered!", "success");
+        fetchJobs();
+      } else {
+        throw new Error(data.detail || "Test email delivery failed");
+      }
+    } catch (e: any) {
+      console.error(e);
+      triggerToast(`Failed to trigger test email: ${e.message}`, "error");
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
+  // Clear all jobs from board
+  const handleClearJobs = async () => {
+    if (!window.confirm("Are you sure you want to clear all jobs from the board?")) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/clear`, {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (res.ok && data.status === "success") {
+        triggerToast("Cleared all jobs from the board.", "success");
+        fetchJobs();
+      } else {
+        throw new Error(data.detail || "Clear failed");
+      }
+    } catch (e: any) {
+      console.error(e);
+      triggerToast(`Failed to clear jobs: ${e.message}`, "error");
+    }
+  };
+
+  const handleToggleStar = async (jobId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/${jobId}/toggle-star`, {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (res.ok && data.status === "success") {
+        setJobs(prevJobs =>
+          prevJobs.map(job =>
+            job.id === jobId ? { ...job, starred: !job.starred } : job
+          )
+        );
+        triggerToast("Updated favorites.", "success");
+      } else {
+        throw new Error(data.detail || "Failed to update star status");
+      }
+    } catch (e: any) {
+      console.error(e);
+      triggerToast(`Error: ${e.message}`, "error");
+    }
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    if (!window.confirm("Are you sure you want to delete this job?")) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (res.ok && data.status === "success") {
+        triggerToast("Deleted job listing.", "success");
+        fetchJobs();
+      } else {
+        throw new Error(data.detail || "Failed to delete job");
+      }
+    } catch (e: any) {
+      console.error(e);
+      triggerToast(`Error: ${e.message}`, "error");
     }
   };
 
@@ -236,7 +371,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchJobs();
-  }, [page, searchTerm, selectedCategory]);
+  }, [page, searchTerm, selectedCategory, selectedLocation, showStarredOnly]);
 
   useEffect(() => {
     fetchApplications();
@@ -1515,76 +1650,186 @@ export default function Home() {
                   <option value="Data Science">Data Science</option>
                 </select>
               </div>
+              <div className="flex items-center border-4 border-navy bg-white shadow-[2px_2px_0px_0px_rgba(43,45,66,1)]">
+                <div className="p-3 text-frenchgray border-r border-navy/10">
+                  <Icons.Filter />
+                </div>
+                <select
+                  value={selectedLocation}
+                  onChange={e => { setSelectedLocation(e.target.value); setPage(1); }}
+                  className="p-3 bg-transparent font-black uppercase text-xs focus:outline-none cursor-pointer text-navy max-w-[150px]"
+                >
+                  <option value="">All Locations</option>
+                  {availableLocations.map((loc, idx) => (
+                    <option key={idx} value={loc}>{loc}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Starred-only toggle */}
+              <button
+                onClick={() => { setShowStarredOnly(p => !p); setPage(1); }}
+                title={showStarredOnly ? "Showing starred only — click to show all" : "Show starred jobs only"}
+                className={`px-4 py-3 border-4 border-navy font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_rgba(43,45,66,1)] transition-all flex items-center gap-2 cursor-pointer ${
+                  showStarredOnly
+                    ? "bg-amber-400 text-navy"
+                    : "bg-white text-navy hover:bg-amber-50"
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={showStarredOnly ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                {showStarredOnly ? "Starred Only" : "Starred"}
+              </button>
+              <button
+                onClick={handleScrapeJobs}
+                disabled={isScraping}
+                className="px-6 py-3 border-4 border-navy bg-vibrantred text-antiwhite font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_rgba(43,45,66,1)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:bg-frenchgray disabled:cursor-not-allowed"
+              >
+                {isScraping ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Agent Scraping...
+                  </>
+                ) : (
+                  <>
+                    <Icons.Sparkles />
+                    Scrape Tailored Jobs
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleSendTestEmail}
+                disabled={isSendingTest || isScraping}
+                className="px-6 py-3 border-4 border-navy bg-white hover:bg-navy hover:text-antiwhite text-navy font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_rgba(43,45,66,1)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:bg-frenchgray disabled:cursor-not-allowed"
+              >
+                {isSendingTest ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-navy border-t-transparent rounded-full animate-spin" />
+                    Sending Test...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    Send Test Email
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleClearJobs}
+                className="px-6 py-3 border-4 border-navy bg-frenchgray text-navy hover:bg-navy hover:text-antiwhite font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_rgba(43,45,66,1)] transition-all cursor-pointer flex items-center gap-2"
+              >
+                <Icons.Close />
+                Clear All Jobs
+              </button>
             </div>
 
 
 
-            {/* Jobs Board Grid Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Jobs Board — 2-col grid, clean cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {jobs.map(job => {
-                const isRecommended = job.skills.some(s => s.toLowerCase().includes("learning") || s.toLowerCase().includes("ml") || s.toLowerCase().includes("robot"));
-
+                const isRecommended = job.skills.some(s =>
+                  s.toLowerCase().includes("learning") ||
+                  s.toLowerCase().includes("ml") ||
+                  s.toLowerCase().includes("robot")
+                );
                 return (
-                  <div 
-                    key={job.id} 
-                    className="border-4 border-navy p-5 bg-white flex flex-col justify-between shadow-[4px_4px_0px_0px_rgba(43,45,66,1)] hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[7px_7px_0px_0px_rgba(43,45,66,1)] transition-all relative overflow-hidden"
+                  <div
+                    key={job.id}
+                    className="border-3 border-navy bg-white flex flex-col shadow-[3px_3px_0px_0px_rgba(43,45,66,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_rgba(43,45,66,1)] transition-all"
                   >
-                    <div>
-                      <div className="flex justify-between items-start gap-2">
-                        <span className="bg-navy text-antiwhite text-[9px] font-black uppercase px-2 py-0.5 tracking-wider border border-navy font-sans">{job.category}</span>
-                        <span className="text-[9px] font-extrabold text-frenchgray uppercase tracking-wide bg-antiwhite px-2 py-0.5 border border-navy/10 font-sans">{job.location}</span>
-                      </div>
-
-                      <h3 
-                        onClick={() => setSelectedJob(job)}
-                        className="text-lg font-black mt-3.5 text-navy line-clamp-1 leading-snug cursor-pointer hover:text-vibrantred hover:underline"
-                      >
-                        {job.title}
-                      </h3>
-                      <p className="text-xs font-black text-vibrantred uppercase tracking-wider font-sans">{job.company}</p>
-                      
-                      {/* Recommendations */}
-                      {isRecommended && (
-                        <div className="flex items-center gap-2 mt-3.5 font-sans">
-                          <div className="bg-vibrantred text-antiwhite text-[9px] font-black uppercase px-2 py-0.5 border border-navy">
-                            ★ Recommended
-                          </div>
-                        </div>
-                      )}
-
-                      <p className="text-xs text-navy/85 mt-4 line-clamp-3 font-semibold leading-loose border-t border-navy/5 pt-3 select-text font-sans">
-                        {job.description}
-                      </p>
-                      
-                      {/* Skill Tags */}
-                      <div className="flex flex-wrap gap-1 mt-4 font-sans">
-                        {job.skills.slice(0, 4).map((skill, index) => (
-                          <span key={index} className="bg-frenchgray/15 text-navy border border-navy/30 text-[9px] font-extrabold px-2 py-0.5 select-all">
-                            {skill}
-                          </span>
-                        ))}
-                        {job.skills.length > 4 && (
-                          <span className="bg-navy text-antiwhite border border-navy text-[9px] font-black px-2 py-0.5">
-                            +{job.skills.length - 4} more
+                    {/* Card Header */}
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-navy/10 bg-antiwhite">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="bg-navy text-antiwhite text-[8px] font-black uppercase px-2 py-0.5 tracking-wider shrink-0 font-sans">
+                          {job.category}
+                        </span>
+                        {isRecommended && (
+                          <span className="bg-amber-100 text-amber-700 border border-amber-300 text-[8px] font-black uppercase px-2 py-0.5 tracking-wider shrink-0 font-sans">
+                            ★ Match
                           </span>
                         )}
+                        <span className="text-[9px] font-bold text-frenchgray uppercase tracking-wide truncate font-sans">
+                          📍 {job.location}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        <button
+                          onClick={() => handleToggleStar(job.id)}
+                          title={job.starred ? "Unstar" : "Star this job"}
+                          className={`w-7 h-7 flex items-center justify-center border border-navy text-sm transition-all cursor-pointer hover:-translate-y-0.5 ${job.starred ? 'bg-amber-300 text-navy' : 'bg-white text-frenchgray hover:bg-amber-50 hover:text-amber-500'}`}
+                        >
+                          ★
+                        </button>
+                        <button
+                          onClick={() => handleDeleteJob(job.id)}
+                          title="Delete"
+                          className="w-7 h-7 flex items-center justify-center border border-navy bg-white text-frenchgray hover:bg-vibrantred hover:text-white hover:border-vibrantred transition-all cursor-pointer hover:-translate-y-0.5"
+                        >
+                          <Icons.Trash />
+                        </button>
                       </div>
                     </div>
 
-                    <div className="mt-6 border-t-2 border-navy pt-4 flex items-center justify-between gap-2 font-sans">
-                      <button
-                        onClick={() => setSelectedJob(job)}
-                        className="text-[10px] font-black uppercase text-frenchgray hover:text-navy tracking-wide flex items-center gap-0.5 cursor-pointer underline"
-                      >
-                        View Details <Icons.ChevronRight />
-                      </button>
-                      <button
-                        onClick={() => handleApply(job.id)}
-                        disabled={applyingJobId !== null}
-                        className="bg-vibrantred hover:bg-engorange disabled:bg-frenchgray text-antiwhite text-[10px] font-black uppercase px-4.5 py-2 border-2 border-navy shadow-[2px_2px_0px_0px_rgba(43,45,66,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer whitespace-nowrap"
-                      >
-                        {applyingJobId === job.id ? "Optimizing..." : "Apply & Optimize"}
-                      </button>
+                    {/* Card Body */}
+                    <div className="px-4 pt-3 pb-4 flex flex-col flex-1 gap-3">
+                      {/* Title & Company */}
+                      <div>
+                        <h3
+                          onClick={() => setSelectedJob(job)}
+                          className="text-base font-black text-navy leading-tight cursor-pointer hover:text-vibrantred transition-colors line-clamp-1"
+                        >
+                          {job.title}
+                        </h3>
+                        <p className="text-[11px] font-black text-vibrantred uppercase tracking-wide mt-0.5 font-sans">
+                          {job.company}
+                        </p>
+                      </div>
+
+                      {/* Skill Pills — capped at 3 */}
+                      <div className="flex flex-wrap gap-1 font-sans">
+                        {job.skills.slice(0, 3).map((skill, i) => (
+                          <span key={i} className="bg-frenchgray/10 text-navy border border-navy/20 text-[9px] font-extrabold px-2 py-0.5">
+                            {skill}
+                          </span>
+                        ))}
+                        {job.skills.length > 3 && (
+                          <span className="bg-navy/5 text-navy/50 border border-navy/10 text-[9px] font-bold px-2 py-0.5">
+                            +{job.skills.length - 3}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Action Row */}
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-navy/10 mt-auto font-sans">
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => setSelectedJob(job)}
+                            className="text-[10px] font-black uppercase text-frenchgray hover:text-navy tracking-wide flex items-center gap-0.5 cursor-pointer hover:underline"
+                          >
+                            Details <Icons.ChevronRight />
+                          </button>
+                          {job.apply_url && (
+                            <a
+                              href={job.apply_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] font-black uppercase text-vibrantred hover:text-engorange tracking-wide flex items-center gap-0.5 cursor-pointer hover:underline"
+                            >
+                              Link <Icons.ExternalLink />
+                            </a>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleApply(job.id)}
+                          disabled={applyingJobId !== null}
+                          className="bg-vibrantred hover:bg-engorange disabled:bg-frenchgray text-antiwhite text-[9px] font-black uppercase px-3.5 py-1.5 border-2 border-navy shadow-[2px_2px_0px_0px_rgba(43,45,66,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer whitespace-nowrap"
+                        >
+                          {applyingJobId === job.id ? "Optimizing…" : "Apply & Optimize"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

@@ -1,4 +1,4 @@
-# Local env files
+# ─── Environment Variables (NEVER commit these) ───
 .env
 backend/.env
 frontend/.env
@@ -7,7 +7,7 @@ frontend/.env.development.local
 frontend/.env.test.local
 frontend/.env.production.local
 
-# Python caches
+# ─── Python caches ───
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,17 +16,38 @@ __pycache__/
 venv/
 ENV/
 
-# Next.js build and dependencies
+# ─── Next.js build and dependencies ───
 frontend/.next/
 frontend/out/
 frontend/node_modules/
 node_modules/
 
-# Local build artifacts and outputs
+# ─── Backend runtime data (user-specific, generated at runtime) ───
+backend/jobs_db.json
+backend/jobs_db_backup.json
+backend/user_config.json
+backend/users_config.json
+backend/scratch/
+
+# ─── Embedded / third-party tool subdirectories ───
+backend/JobSpy/
+backend/job-scout/
+backend/jobbot/
+backend/hiring-agent/
+
+# ─── Root-level data files ───
+jobs_db.json
+curl_google.html
+google_final.html
+google_jobs_initial.html
+
+# ─── Build artifacts & outputs ───
 backend/output/*/
 !backend/output/.gitkeep
 backend/output/karthikeya3342_status.json
 backend/output/karthikeya_status.json
+
+# ─── LaTeX / PDF artifacts ───
 *.pdf
 *.tex
 *.log
@@ -34,7 +55,16 @@ backend/output/karthikeya_status.json
 *.out
 *.synctex.gz
 
-# System files
+# ─── Temp / scratch HTML files ───
+curl_google.html
+google_final.html
+google_jobs_initial.html
+*.html
+
+# ─── Test files ───
+backend/test_resume.pdf
+
+# ─── System files ───
 .DS_Store
 Thumbs.db
 .agents/
