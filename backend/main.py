@@ -51,14 +51,14 @@ def _send_mail(to_email, subject, html, text, csv_str=None):
                  "Content-Type": "application/json"}, method="POST")
     try:
         with urllib.request.urlopen(req) as r:
-            print(f"[Scheduler] Email sent → {to_email} | status {r.status}")
+            print(f"[Scheduler] Email sent -> {to_email} | status {r.status}")
     except Exception as e:
         print(f"[Scheduler] Email failed: {e}")
 
 async def daily_scraping_job(user_id: str, to_email: str, run_scrape: bool = True):
     _backend_dir = os.path.dirname(os.path.abspath(__file__))
     _db_path = os.path.join(_backend_dir, "jobs_db.json")
-    print(f"[Scheduler] Running daily job for {user_id} → {to_email} (run_scrape={run_scrape})")
+    print(f"[Scheduler] Running daily job for {user_id} -> {to_email} (run_scrape={run_scrape})")
 
     if run_scrape:
         # Clear non-starred jobs
