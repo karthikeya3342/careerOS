@@ -55,25 +55,26 @@ def _send_mail(to_email, subject, html, text, csv_str=None):
     except Exception as e:
         print(f"[Scheduler] Email failed: {e}")
 
-async def daily_scraping_job(user_id: str, to_email: str):
+async def daily_scraping_job(user_id: str, to_email: str, run_scrape: bool = True):
     _backend_dir = os.path.dirname(os.path.abspath(__file__))
     _db_path = os.path.join(_backend_dir, "jobs_db.json")
-    print(f"[Scheduler] Running daily job for {user_id} → {to_email}")
+    print(f"[Scheduler] Running daily job for {user_id} → {to_email} (run_scrape={run_scrape})")
 
-    # Clear non-starred jobs
-    if os.path.exists(_db_path):
-        with open(_db_path, "r", encoding="utf-8") as f:
-            jobs = json.load(f)
-        with open(_db_path, "w", encoding="utf-8") as f:
-            json.dump([j for j in jobs if j.get("starred")], f, indent=4)
+    if run_scrape:
+        # Clear non-starred jobs
+        if os.path.exists(_db_path):
+            with open(_db_path, "r", encoding="utf-8") as f:
+                jobs = json.load(f)
+            with open(_db_path, "w", encoding="utf-8") as f:
+                json.dump([j for j in jobs if j.get("starred")], f, indent=4)
 
-    # Scrape
-    try:
-        agent = JobScrapingAgent(user_id)
-        new_count = await agent.run()
-    except Exception as e:
-        print(f"[Scheduler] Scraper error: {e}")
-        new_count = 0
+        # Scrape
+        try:
+            agent = JobScrapingAgent(user_id)
+            new_count = await agent.run()
+        except Exception as e:
+            print(f"[Scheduler] Scraper error: {e}")
+            new_count = 0
 
     # Load results
     try:
@@ -301,12 +302,12 @@ async def trigger_test_email(user_id: Optional[str] = None):
                 raise HTTPException(status_code=404,
                     detail=f"User config for '{user_id}' not found.")
             u = users[user_id]
-            await daily_scraping_job(u["user_id"], u["email"])
+            await daily_scraping_job(u["user_id"], u["email"], run_scrape=False)
             return {"status": "success",
                     "message": f"Test digest email triggered and sent to {u['email']}."}
         else:
             await asyncio.gather(*[
-                daily_scraping_job(u["user_id"], u["email"])
+                daily_scraping_job(u["user_id"], u["email"], run_scrape=False)
                 for u in users.values() if u.get("user_id") and u.get("email")
             ])
             return {"status": "success",
