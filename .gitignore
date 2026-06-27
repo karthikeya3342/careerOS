@@ -1,4 +1,4 @@
-# ─── Environment Variables (NEVER commit these) ───
+# Local env files
 .env
 backend/.env
 frontend/.env
@@ -7,7 +7,7 @@ frontend/.env.development.local
 frontend/.env.test.local
 frontend/.env.production.local
 
-# ─── Python caches ───
+# Python caches
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,27 +16,17 @@ __pycache__/
 venv/
 ENV/
 
-# ─── Next.js build and dependencies ───
+# Next.js build and dependencies
 frontend/.next/
 frontend/out/
 frontend/node_modules/
 node_modules/
 
-# ─── Backend runtime data (user-specific, generated at runtime) ───
-backend/jobs_db.json
-backend/jobs_db_backup.json
-backend/user_config.json
-backend/users_config.json
-backend/scratch/
-
-
-# ─── Build artifacts & outputs ───
+# Local build artifacts and outputs
 backend/output/*/
 !backend/output/.gitkeep
 backend/output/karthikeya3342_status.json
 backend/output/karthikeya_status.json
-
-# ─── LaTeX / PDF artifacts ───
 *.pdf
 *.tex
 *.log
@@ -44,16 +34,7 @@ backend/output/karthikeya_status.json
 *.out
 *.synctex.gz
 
-# ─── Temp / scratch HTML files ───
-curl_google.html
-google_final.html
-google_jobs_initial.html
-*.html
-
-# ─── Test files ───
-backend/test_resume.pdf
-
-# ─── System files ───
+# System files
 .DS_Store
 Thumbs.db
 .agents/

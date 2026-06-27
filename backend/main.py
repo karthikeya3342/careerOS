@@ -22,7 +22,7 @@ from job_scraping_agent import JobScrapingAgent
 # Inline Scheduler (runs as background asyncio task)
 # ─────────────────────────────────────────────
 AGENTMAIL_API_KEY = os.getenv("AGENTMAIL_API_KEY", "")
-INBOX_ID = os.getenv("AGENTMAIL_INBOX_ID", "careeros@agentmail.to")
+INBOX_ID = os.getenv("AGENTMAIL_INBOX_ID", "")
 
 def _compile_csv(jobs):
     import io, csv as _csv

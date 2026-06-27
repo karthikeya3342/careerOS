@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HiringCafe Job Finder</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <style>
+    /* HiringCafe — brand pink */
+    body.hcafe { --primary: #ec4899; --primary-soft: #fce4ef; --accent: #ec4899; --accent-soft: #fce4ef; }
+    body.hcafe .search-btn { background: linear-gradient(125deg, #ec4899, #f472b6); box-shadow: 0 10px 26px rgba(236, 72, 153, 0.32); }
+    body.hcafe .apply { background: linear-gradient(125deg, #ec4899, #f472b6); }
+    .skills-row { margin-top: 6px; font-size: 11px; color: var(--subtext); }
+    .skill-pill { display: inline-block; background: var(--panel-soft); border: 1px solid var(--line); padding: 2px 7px; border-radius: 999px; margin-right: 4px; margin-bottom: 3px; font-weight: 600; }
+    .badge.workplace-onsite { color: #7d4a00; border-color: #f4d8ac; background: #fff4df; }
+    .badge.workplace-remote { color: var(--success); border-color: color-mix(in srgb, var(--success) 35%, var(--line)); background: color-mix(in srgb, var(--success) 12%, var(--panel)); }
+    .badge.workplace-hybrid { color: #6b3fd4; border-color: #d3c4f3; background: #ece1ff; }
+    html[data-theme="dark"] .badge.workplace-hybrid { color: #b89cff; border-color: #3f2d63; background: #1f1633; }
+  </style>
+</head>
+<body class="hcafe">
+  <div class="shell">
+    <aside class="panel sidebar">
+      <div class="header">
+        <div class="brand-row">
+          <div class="brand">Cafe<span class="accent-green">Scout</span></div>
+          <div style="display:flex;gap:6px;">
+            <a class="back-link" href="/">← Home</a>
+            <button class="theme-btn" id="themeBtn" type="button" onclick="toggleTheme()">Dark Mode</button>
+          </div>
+        </div>
+        <div class="tagline">HiringCafe aggregated search across Workday, Greenhouse, Lever and more.</div>
+      </div>
+
+      <div class="form-body">
+        <div class="block">
+          <label class="label" for="role">Job Role / Keywords</label>
+          <input id="role" type="text" placeholder="devops, backend, data scientist..." value="devops" />
+        </div>
+
+        <div class="block">
+          <label class="label" for="city">Location</label>
+          <select id="city">
+            {% for city in cities %}
+            <option value="{{ city }}" {% if city == 'Bengaluru' %}selected{% endif %}>{{ city }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="block">
+          <div class="grid2">
+            <div>
+              <label class="label" for="posting">Posted Within</label>
+              <select id="posting">
+                <option value="1">1 Day</option>
+                <option value="2" selected>2 Days</option>
+                <option value="3">3 Days</option>
+                <option value="7">7 Days</option>
+                <option value="14">14 Days</option>
+                <option value="30">30 Days</option>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="limit">Results</label>
+              <select id="limit">
+                <option value="5">5 Jobs</option>
+                <option value="10" selected>10 Jobs</option>
+                <option value="20">20 Jobs</option>
+                <option value="30">30 Jobs</option>
+                <option value="40">40 Jobs</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="foot">
+        <button id="searchBtn" class="search-btn" type="button" onclick="searchJobs()">Search Jobs</button>
+        <div id="statusMsg" class="status"></div>
+      </div>
+    </aside>
+
+    <main class="panel main">
+      <div class="topbar">
+        <div>
+          <div class="title" id="tbTitle">HiringCafe Job Finder</div>
+          <div class="subtitle" id="tbSub">Enter a keyword and pick a location to search.</div>
+        </div>
+        <div class="stats" id="statsWrap" style="display:none;">
+          <div class="stat" id="statCount">0 jobs</div>
+          <div class="stat" id="statLoc">0 locations</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="toolbar" id="toolbar">
+          <button class="quick-btn active" type="button" data-filter="all" onclick="setFilter('all', this)">All</button>
+          <button class="quick-btn" type="button" data-filter="onsite" onclick="setFilter('onsite', this)">Onsite</button>
+          <button class="quick-btn" type="button" data-filter="hybrid" onclick="setFilter('hybrid', this)">Hybrid</button>
+          <button class="quick-btn" type="button" data-filter="remote" onclick="setFilter('remote', this)">Remote</button>
+          <select id="sortSelect" onchange="setSort(this.value)" style="margin-left: auto; max-width: 190px;">
+            <option value="date-desc">Newest First</option>
+            <option value="date-asc">Oldest First</option>
+            <option value="title">Job Title (A-Z)</option>
+            <option value="company">Company (A-Z)</option>
+          </select>
+          <button id="dlBtn" class="download-btn" type="button" onclick="downloadExcel()" disabled>Download Excel</button>
+        </div>
+
+        <section id="stWelcome" class="state">
+          <h2>Aggregated Job Search</h2>
+          <p>HiringCafe pulls live listings from hundreds of ATS systems. Pick a keyword, location and posted-age — results link straight to the company's apply page.</p>
+        </section>
+
+        <section id="stLoading" class="state" style="display:none;">
+          <div class="loading"></div>
+          <h2>Searching HiringCafe</h2>
+          <p>Fetching aggregated listings. Usually under 5 seconds.</p>
+        </section>
+
+        <section id="stEmpty" class="state" style="display:none;">
+          <h2>No Matching Jobs</h2>
+          <p>Try a broader keyword, a different city or wider posted-age.</p>
+        </section>
+
+        <div class="jobs" id="jobs"></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const PORTAL = "hcafe";
+
+    let allJobs = [];
+    let currentFilter = "all";
+    let currentSort = "date-desc";
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
+    function setStatus(message, cls = "") {
+      const el = document.getElementById("statusMsg");
+      el.textContent = message;
+      el.className = `status ${cls}`;
+    }
+
+    function showOnly(id) {
+      ["stWelcome", "stLoading", "stEmpty"].forEach((s) => {
+        document.getElementById(s).style.display = s === id ? "block" : "none";
+      });
+    }
+
+    function updateThemeButton() {
+      const dark = document.documentElement.getAttribute("data-theme") === "dark";
+      document.getElementById("themeBtn").textContent = dark ? "Light Mode" : "Dark Mode";
+    }
+    function toggleTheme() {
+      const root = document.documentElement;
+      const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      localStorage.setItem("jobscout_theme", next);
+      updateThemeButton();
+    }
+    (function initTheme() {
+      const saved = localStorage.getItem("jobscout_theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+      updateThemeButton();
+    })();
+
+    function setFilter(type, buttonEl) {
+      currentFilter = type;
+      document.querySelectorAll(".quick-btn[data-filter]").forEach((btn) => btn.classList.remove("active"));
+      buttonEl.classList.add("active");
+      renderJobs();
+    }
+    function setSort(value) { currentSort = value; renderJobs(); }
+
+    function workplaceBadge(wp) {
+      if (!wp) return "";
+      const wpl = wp.toLowerCase();
+      if (wpl === "onsite") return '<span class="badge workplace-onsite">Onsite</span>';
+      if (wpl === "remote") return '<span class="badge workplace-remote">Remote</span>';
+      if (wpl === "hybrid") return '<span class="badge workplace-hybrid">Hybrid</span>';
+      return `<span class="badge">${escapeHtml(wp)}</span>`;
+    }
+
+    function renderJobs() {
+      const jobsWrap = document.getElementById("jobs");
+      jobsWrap.innerHTML = "";
+      let filtered = [...allJobs];
+
+      if (currentFilter !== "all") {
+        filtered = filtered.filter((j) => (j.Workplace || "").toLowerCase() === currentFilter);
+      }
+
+      switch (currentSort) {
+        case "date-asc": filtered.sort((a, b) => (a.Posted || "").localeCompare(b.Posted || "")); break;
+        case "title": filtered.sort((a, b) => (a["Job Title"] || "").localeCompare(b["Job Title"] || "")); break;
+        case "company": filtered.sort((a, b) => (a.Company || "").localeCompare(b.Company || "")); break;
+        case "date-desc":
+        default: filtered.sort((a, b) => (b.Posted || "").localeCompare(a.Posted || "")); break;
+      }
+
+      if (!filtered.length) {
+        jobsWrap.innerHTML = "<section class='state'><h2>No Jobs For This View</h2><p>Try changing the workplace filter.</p></section>";
+        return;
+      }
+
+      filtered.forEach((job, index) => {
+        const posted = job.Posted || "N/A";
+        const delay = Math.min(index * 22, 220);
+        const card = document.createElement("article");
+        card.className = "job";
+        card.style.animationDelay = `${delay}ms`;
+        const skills = (job.Skills || "").split(",").map(s => s.trim()).filter(Boolean).slice(0, 5);
+        const skillsHtml = skills.length
+          ? `<div class="skills-row">${skills.map(s => `<span class="skill-pill">${escapeHtml(s)}</span>`).join("")}</div>`
+          : "";
+        card.innerHTML = `
+          <div>
+            <div class="job-title">${escapeHtml(job["Job Title"])}</div>
+            <div class="job-company">${escapeHtml(job.Company || "N/A")}</div>
+            <div class="meta">
+              <span class="badge">${escapeHtml(job.Location || "Unknown")}</span>
+              ${workplaceBadge(job.Workplace)}
+              ${job.Experience ? `<span class="badge">${escapeHtml(job.Experience)}</span>` : ""}
+              <span class="badge">Posted ${escapeHtml(posted)}</span>
+            </div>
+            ${skillsHtml}
+          </div>
+          <a class="apply" href="${escapeHtml(job.Link)}" target="_blank" rel="noopener noreferrer">Apply</a>
+        `;
+        jobsWrap.appendChild(card);
+      });
+    }
+
+    function searchJobs() {
+      const role = document.getElementById("role").value.trim();
+      const city = document.getElementById("city").value;
+      const posting = document.getElementById("posting").value;
+      const limitVal = document.getElementById("limit").value;
+
+      if (!role) { setStatus("Enter a job role.", "err"); return; }
+
+      showOnly("stLoading");
+      document.getElementById("jobs").innerHTML = "";
+      document.getElementById("toolbar").style.display = "none";
+      document.getElementById("statsWrap").style.display = "none";
+      document.getElementById("searchBtn").disabled = true;
+      document.getElementById("dlBtn").disabled = true;
+      document.getElementById("tbTitle").textContent = "Searching...";
+      document.getElementById("tbSub").textContent = `${role} in ${city}`;
+      setStatus("");
+
+      const params = new URLSearchParams({ role, city, posting, limit: limitVal });
+
+      fetch(`/search/${PORTAL}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          document.getElementById("searchBtn").disabled = false;
+
+          if (data.error) {
+            showOnly("stWelcome");
+            document.getElementById("tbTitle").textContent = "HiringCafe Job Finder";
+            document.getElementById("tbSub").textContent = "Enter a keyword and pick a location to search.";
+            setStatus(data.error, "err");
+            return;
+          }
+
+          allJobs = data.jobs || [];
+          currentFilter = "all"; currentSort = "date-desc";
+          document.querySelectorAll(".quick-btn[data-filter]").forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.filter === "all");
+          });
+          document.getElementById("sortSelect").value = "date-desc";
+
+          document.getElementById("tbTitle").textContent = role;
+          document.getElementById("tbSub").textContent = `${allJobs.length} job(s) in ${city}`;
+          document.getElementById("statCount").textContent = `${allJobs.length} jobs`;
+          document.getElementById("statLoc").textContent = city;
+          document.getElementById("statsWrap").style.display = "flex";
+
+          if (!allJobs.length) {
+            showOnly("stEmpty");
+            setStatus("No jobs found for this combination.", "warn");
+            return;
+          }
+
+          showOnly("");
+          document.getElementById("toolbar").style.display = "flex";
+          document.getElementById("dlBtn").disabled = false;
+          renderJobs();
+
+          const requested = Number(limitVal);
+          if (allJobs.length < requested) setStatus(`Found ${allJobs.length} of ${requested} requested jobs.`, "warn");
+          else setStatus(`Found ${allJobs.length} jobs.`, "ok");
+        })
+        .catch(() => {
+          document.getElementById("searchBtn").disabled = false;
+          showOnly("stWelcome");
+          document.getElementById("tbTitle").textContent = "HiringCafe Job Finder";
+          document.getElementById("tbSub").textContent = "Enter a keyword and pick a location to search.";
+          setStatus("Network error. Ensure Flask server is running.", "err");
+        });
+    }
+
+    function downloadExcel() { window.location = `/download/${PORTAL}`; }
+
+    document.getElementById("role").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") searchJobs();
+    });
+  </script>
+</body>
+</html>

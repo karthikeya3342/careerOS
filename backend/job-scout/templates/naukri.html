@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Naukri Job Finder</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <style>
+    /* Naukri — blue/teal */
+    body.naukri { --primary: #0079c1; --primary-soft: #d8ecfb; --accent: #0079c1; --accent-soft: #d8ecfb; }
+    body.naukri .search-btn { background: linear-gradient(125deg, #0079c1, #4aa9e0); box-shadow: 0 10px 26px rgba(0, 121, 193, 0.32); }
+    body.naukri .apply { background: linear-gradient(125deg, #0079c1, #4aa9e0); }
+    .skills-row { margin-top: 6px; font-size: 11px; color: var(--subtext); }
+    .skill-pill { display: inline-block; background: var(--panel-soft); border: 1px solid var(--line); padding: 2px 7px; border-radius: 999px; margin-right: 4px; margin-bottom: 3px; font-weight: 600; }
+    .desc-row { margin-top: 4px; font-size: 12px; color: var(--subtext); line-height: 1.4; }
+    .rating-badge { background: linear-gradient(90deg, #ffb800, #ff9800); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+  </style>
+</head>
+<body class="naukri">
+  <div class="shell">
+    <aside class="panel sidebar">
+      <div class="header">
+        <div class="brand-row">
+          <div class="brand">Naukri<span class="accent-blue">Scout</span></div>
+          <div style="display:flex;gap:6px;">
+            <a class="back-link" href="/">← Home</a>
+            <button class="theme-btn" id="themeBtn" type="button" onclick="toggleTheme()">Dark Mode</button>
+          </div>
+        </div>
+        <div class="tagline">Naukri job search — relevance-sorted with freshness filter.</div>
+      </div>
+
+      <div class="form-body">
+        <div class="block">
+          <label class="label" for="role">Job Role / Keywords</label>
+          <input id="role" type="text" placeholder="devops engineer, python, backend..." value="devops engineer" />
+        </div>
+
+        <div class="block">
+          <label class="label" for="city">Location</label>
+          <select id="city">
+            {% for city in cities %}
+            <option value="{{ city }}" {% if city == 'Bengaluru' %}selected{% endif %}>{{ city }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="block">
+          <div class="grid2">
+            <div>
+              <label class="label" for="jobAge">Posted Within</label>
+              <select id="jobAge">
+                <option value="1">1 Day</option>
+                <option value="3">3 Days</option>
+                <option value="7" selected>7 Days</option>
+                <option value="15">15 Days</option>
+                <option value="30">30 Days</option>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="experience">Experience</label>
+              <select id="experience">
+                <option value="" selected>Any</option>
+                <option value="0">0 Yrs (Fresher)</option>
+                <option value="1">1 Yr</option>
+                <option value="2">2 Yrs</option>
+                <option value="3">3 Yrs</option>
+                <option value="4">4 Yrs</option>
+                <option value="5">5 Yrs</option>
+                <option value="7">7 Yrs</option>
+                <option value="10">10 Yrs</option>
+                <option value="15">15 Yrs</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="block">
+          <label class="label" for="limit">Results</label>
+          <select id="limit">
+            <option value="5">5 Jobs</option>
+            <option value="10" selected>10 Jobs</option>
+            <option value="20">20 Jobs</option>
+            <option value="30">30 Jobs</option>
+            <option value="50">50 Jobs</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="foot">
+        <button id="searchBtn" class="search-btn" type="button" onclick="searchJobs()">Search Jobs</button>
+        <div id="statusMsg" class="status"></div>
+      </div>
+    </aside>
+
+    <main class="panel main">
+      <div class="topbar">
+        <div>
+          <div class="title" id="tbTitle">Naukri Job Finder</div>
+          <div class="subtitle" id="tbSub">Enter a keyword and pick a location to search.</div>
+        </div>
+        <div class="stats" id="statsWrap" style="display:none;">
+          <div class="stat" id="statCount">0 jobs</div>
+          <div class="stat" id="statLoc">0 locations</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="toolbar" id="toolbar">
+          <select id="sortSelect" onchange="setSort(this.value)" style="margin-left: auto; max-width: 190px;">
+            <option value="date-desc">Newest First</option>
+            <option value="date-asc">Oldest First</option>
+            <option value="title">Job Title (A-Z)</option>
+            <option value="company">Company (A-Z)</option>
+          </select>
+          <button id="dlBtn" class="download-btn" type="button" onclick="downloadExcel()" disabled>Download Excel</button>
+        </div>
+
+        <section id="stWelcome" class="state">
+          <h2>Naukri.com Job Search</h2>
+          <p>Combines Naukri's relevance ranking with a freshness window for the best results. Drop the experience filter for the widest net, or set it to match your target role.</p>
+        </section>
+
+        <section id="stLoading" class="state" style="display:none;">
+          <div class="loading"></div>
+          <h2>Searching Naukri</h2>
+          <p>Establishing browser session (slower the first time). Subsequent searches reuse the cached profile.</p>
+        </section>
+
+        <section id="stEmpty" class="state" style="display:none;">
+          <h2>No Matching Jobs</h2>
+          <p>Try a broader keyword, wider posted-age, or drop the experience filter.</p>
+        </section>
+
+        <div class="jobs" id="jobs"></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const AGE_LABELS = { "1": "1 day", "3": "3 days", "7": "7 days", "15": "15 days", "30": "30 days" };
+    const PORTAL = "naukri";
+
+    let allJobs = [];
+    let currentSort = "date-desc";
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
+    function setStatus(message, cls = "") {
+      const el = document.getElementById("statusMsg");
+      el.textContent = message;
+      el.className = `status ${cls}`;
+    }
+
+    function showOnly(id) {
+      ["stWelcome", "stLoading", "stEmpty"].forEach((s) => {
+        document.getElementById(s).style.display = s === id ? "block" : "none";
+      });
+    }
+
+    function updateThemeButton() {
+      const dark = document.documentElement.getAttribute("data-theme") === "dark";
+      document.getElementById("themeBtn").textContent = dark ? "Light Mode" : "Dark Mode";
+    }
+    function toggleTheme() {
+      const root = document.documentElement;
+      const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      localStorage.setItem("jobscout_theme", next);
+      updateThemeButton();
+    }
+    (function initTheme() {
+      const saved = localStorage.getItem("jobscout_theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+      updateThemeButton();
+    })();
+
+    function setSort(value) { currentSort = value; renderJobs(); }
+
+    function renderJobs() {
+      const jobsWrap = document.getElementById("jobs");
+      jobsWrap.innerHTML = "";
+      let filtered = [...allJobs];
+
+      switch (currentSort) {
+        case "date-asc": filtered.sort((a, b) => (a.Posted || "").localeCompare(b.Posted || "")); break;
+        case "title": filtered.sort((a, b) => (a["Job Title"] || "").localeCompare(b["Job Title"] || "")); break;
+        case "company": filtered.sort((a, b) => (a.Company || "").localeCompare(b.Company || "")); break;
+        case "date-desc":
+        default: filtered.sort((a, b) => (b.Posted || "").localeCompare(a.Posted || "")); break;
+      }
+
+      if (!filtered.length) {
+        jobsWrap.innerHTML = "<section class='state'><h2>No Jobs For This View</h2><p>Try a broader search.</p></section>";
+        return;
+      }
+
+      filtered.forEach((job, index) => {
+        const posted = job.Posted || "N/A";
+        const delay = Math.min(index * 22, 220);
+        const card = document.createElement("article");
+        card.className = "job";
+        card.style.animationDelay = `${delay}ms`;
+        const skills = (job.Skills || "").split(",").map(s => s.trim()).filter(Boolean).slice(0, 6);
+        const skillsHtml = skills.length
+          ? `<div class="skills-row">${skills.map(s => `<span class="skill-pill">${escapeHtml(s)}</span>`).join("")}</div>`
+          : "";
+        const ratingHtml = job.Rating
+          ? `<span class="rating-badge">★ ${escapeHtml(job.Rating)}</span>`
+          : "";
+        const descHtml = job.Description
+          ? `<div class="desc-row">${escapeHtml(job.Description)}</div>`
+          : "";
+        card.innerHTML = `
+          <div>
+            <div class="job-title">${escapeHtml(job["Job Title"])}</div>
+            <div class="job-company">${escapeHtml(job.Company || "N/A")}${ratingHtml}</div>
+            <div class="meta">
+              <span class="badge">${escapeHtml(job.Location || "Unknown")}</span>
+              ${job.Experience ? `<span class="badge">${escapeHtml(job.Experience)}</span>` : ""}
+              ${job.Salary ? `<span class="badge">${escapeHtml(job.Salary)}</span>` : ""}
+              <span class="badge">Posted ${escapeHtml(posted)}</span>
+            </div>
+            ${descHtml}
+            ${skillsHtml}
+          </div>
+          <a class="apply" href="${escapeHtml(job.Link)}" target="_blank" rel="noopener noreferrer">Apply</a>
+        `;
+        jobsWrap.appendChild(card);
+      });
+    }
+
+    function searchJobs() {
+      const role = document.getElementById("role").value.trim();
+      const city = document.getElementById("city").value;
+      const jobAge = document.getElementById("jobAge").value;
+      const experience = document.getElementById("experience").value;
+      const limitVal = document.getElementById("limit").value;
+
+      if (!role) { setStatus("Enter a job role.", "err"); return; }
+
+      showOnly("stLoading");
+      document.getElementById("jobs").innerHTML = "";
+      document.getElementById("toolbar").style.display = "none";
+      document.getElementById("statsWrap").style.display = "none";
+      document.getElementById("searchBtn").disabled = true;
+      document.getElementById("dlBtn").disabled = true;
+      document.getElementById("tbTitle").textContent = "Searching...";
+      document.getElementById("tbSub").textContent = `${role} in ${city} | ${AGE_LABELS[jobAge] || jobAge}`;
+      setStatus("");
+
+      const params = new URLSearchParams({
+        role, city, job_age: jobAge, limit: limitVal,
+      });
+      if (experience) params.set("experience", experience);
+
+      fetch(`/search/${PORTAL}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          document.getElementById("searchBtn").disabled = false;
+
+          if (data.error) {
+            showOnly("stWelcome");
+            document.getElementById("tbTitle").textContent = "Naukri Job Finder";
+            document.getElementById("tbSub").textContent = "Enter a keyword and pick a location to search.";
+            setStatus(data.error, "err");
+            return;
+          }
+
+          allJobs = data.jobs || [];
+          currentSort = "date-desc";
+          document.getElementById("sortSelect").value = "date-desc";
+
+          document.getElementById("tbTitle").textContent = role;
+          document.getElementById("tbSub").textContent = `${allJobs.length} job(s) in ${city} | ${AGE_LABELS[jobAge] || jobAge}`;
+          document.getElementById("statCount").textContent = `${allJobs.length} jobs`;
+          document.getElementById("statLoc").textContent = city;
+          document.getElementById("statsWrap").style.display = "flex";
+
+          if (!allJobs.length) {
+            showOnly("stEmpty");
+            setStatus("No jobs found.", "warn");
+            return;
+          }
+
+          showOnly("");
+          document.getElementById("toolbar").style.display = "flex";
+          document.getElementById("dlBtn").disabled = false;
+          renderJobs();
+
+          const requested = Number(limitVal);
+          if (allJobs.length < requested) setStatus(`Found ${allJobs.length} of ${requested} requested jobs.`, "warn");
+          else setStatus(`Found ${allJobs.length} jobs.`, "ok");
+        })
+        .catch(() => {
+          document.getElementById("searchBtn").disabled = false;
+          showOnly("stWelcome");
+          document.getElementById("tbTitle").textContent = "Naukri Job Finder";
+          document.getElementById("tbSub").textContent = "Enter a keyword and pick a location to search.";
+          setStatus("Network error. Ensure Flask server is running.", "err");
+        });
+    }
+
+    function downloadExcel() { window.location = `/download/${PORTAL}`; }
+
+    document.getElementById("role").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") searchJobs();
+    });
+  </script>
+</body>
+</html>
