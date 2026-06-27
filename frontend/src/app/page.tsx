@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createClient } from "@/utils/supabase/client";
 
 interface Job {
   id: string;
@@ -374,6 +375,90 @@ export default function Home() {
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [manualJdText, setManualJdText] = useState("");
   const [isSubmittingManualJd, setIsSubmittingManualJd] = useState(false);
+
+  // Supabase client and auth states
+  const supabase = createClient();
+  const [user, setUser] = useState<any>(null);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authTab, setAuthTab] = useState<"login" | "signup">("login");
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        const emailPrefix = session.user.email?.split("@")[0] || "karthikeya";
+        setUserId(emailPrefix);
+        setEmail(session.user.email || "");
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        const emailPrefix = session.user.email?.split("@")[0] || "karthikeya";
+        setUserId(emailPrefix);
+        setEmail(session.user.email || "");
+      } else {
+        setUserId("karthikeya"); // reset to default candidate ID
+        setActiveTab("landing");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setShowAuthModal(false);
+    }
+  }, [user]);
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authEmail.trim() || !authPassword.trim()) return;
+
+    setIsSubmittingAuth(true);
+    try {
+      if (authTab === "login") {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: authPassword,
+        });
+        if (error) {
+          triggerToast(error.message, "error");
+        } else {
+          triggerToast("Logged in successfully!", "success");
+          setEmail(authEmail);
+          const emailPrefix = authEmail.split("@")[0] || "karthikeya";
+          setUserId(emailPrefix);
+          setAuthPassword("");
+        }
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email: authEmail,
+          password: authPassword,
+        });
+        if (error) {
+          triggerToast(error.message, "error");
+        } else {
+          triggerToast("Account created successfully! Check email if verification is required.", "success");
+          setEmail(authEmail);
+          const emailPrefix = authEmail.split("@")[0] || "karthikeya";
+          setUserId(emailPrefix);
+          setAuthPassword("");
+        }
+      }
+    } catch (err: any) {
+      triggerToast("Authentication Exception: " + err.message, "error");
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
 
   // Job Search State
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -879,6 +964,11 @@ export default function Home() {
               <span className="bg-vibrantred text-[8px] font-black uppercase px-1.5 py-0.5 border border-navy tracking-widest">v2.5</span>
             </div>
             <div className="flex items-center gap-4">
+              {user && (
+                <span className="hidden md:inline-block text-[10px] font-black uppercase text-frenchgray bg-antiwhite/5 px-2.5 py-1.5 border border-navy/20 font-sans">
+                  Logged in: {user.email}
+                </span>
+              )}
               {/* Top GitHub Link */}
               <a 
                 href="https://github.com/karthikeya3342/careerOS" 
@@ -892,10 +982,16 @@ export default function Home() {
                 GitHub Source
               </a>
               <button
-                onClick={() => setActiveTab("profile")}
+                onClick={() => {
+                  if (user) {
+                    setActiveTab("profile");
+                  } else {
+                    setShowAuthModal(true);
+                  }
+                }}
                 className="bg-vibrantred hover:bg-engorange text-antiwhite text-xs font-black uppercase px-4 py-2 border-3 border-navy shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
               >
-                Enter Command Center
+                {user ? "Enter Command Center" : "Log In / Register"}
               </button>
             </div>
           </nav>
@@ -929,33 +1025,103 @@ export default function Home() {
 
               {/* Quick-Access Entry Console */}
               <div className="mt-8 border-t-4 border-navy pt-6">
-                <h4 className="text-[10px] font-black uppercase text-frenchgray tracking-wider mb-2.5">
-                  Launch Agent Workspace Console
-                </h4>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input 
-                    type="text" 
-                    placeholder="Enter User ID (e.g. karthikeya)" 
-                    value={landingUserId}
-                    onChange={e => setLandingUserId(e.target.value)}
-                    className="bg-antiwhite text-navy border-3 border-navy px-4 py-3 font-black focus:outline-none text-xs sm:text-sm flex-1 focus:ring-2 focus:ring-vibrantred focus:shadow-[2px_2px_0px_0px_rgba(239,35,60,1)] transition-all placeholder:text-frenchgray/75"
-                  />
-                  <button 
-                    onClick={() => {
-                      if (landingUserId.trim()) {
-                        setUserId(landingUserId.trim());
-                      }
-                      setActiveTab("profile");
-                    }}
-                    id="recall-profile-btn"
-                    className="bg-vibrantred hover:bg-engorange text-antiwhite text-xs font-black uppercase px-6 py-3.5 border-3 border-navy shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer whitespace-nowrap"
-                  >
-                    Launch Console
-                  </button>
-                </div>
-                <p className="text-[9px] text-frenchgray font-semibold mt-2 uppercase">
-                  * Enter any User ID to recall their vector memory banks and resume draft pipelines.
-                </p>
+                {user ? (
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase text-frenchgray tracking-wider mb-2">
+                      Authorized Command Center Session
+                    </h4>
+                    <div className="bg-antiwhite border-3 border-navy p-4 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-[3px_3px_0px_0px_rgba(43,45,66,1)]">
+                      <div>
+                        <p className="text-xs font-black uppercase text-navy">Welcome back!</p>
+                        <p className="text-[9.5px] font-bold text-frenchgray uppercase mt-0.5 leading-relaxed">
+                          Logged in: <strong className="text-navy">{user.email}</strong><br />
+                          Active Candidate ID: <strong className="text-vibrantred">{userId}</strong>
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setEmail(user.email || "");
+                          setActiveTab("profile");
+                        }}
+                        className="bg-vibrantred hover:bg-engorange text-antiwhite text-xs font-black uppercase px-5 py-2.5 border-3 border-navy shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        Enter Console
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Auth form header tabs */}
+                    <div className="flex border-b-2 border-navy/20 mb-4">
+                      <button
+                        onClick={() => setAuthTab("login")}
+                        type="button"
+                        className={`pb-2 px-4 text-xs font-black uppercase tracking-wider cursor-pointer border-b-3 transition-all ${
+                          authTab === "login"
+                            ? "border-vibrantred text-navy"
+                            : "border-transparent text-frenchgray hover:text-navy"
+                        }`}
+                      >
+                        Log In
+                      </button>
+                      <button
+                        onClick={() => setAuthTab("signup")}
+                        type="button"
+                        className={`pb-2 px-4 text-xs font-black uppercase tracking-wider cursor-pointer border-b-3 transition-all ${
+                          authTab === "signup"
+                            ? "border-vibrantred text-navy"
+                            : "border-transparent text-frenchgray hover:text-navy"
+                        }`}
+                      >
+                        Create Account
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleAuthSubmit} className="space-y-3 font-sans">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[9px] font-black uppercase text-frenchgray block mb-1">Email Address</label>
+                          <input
+                            type="email"
+                            placeholder="your@email.com"
+                            value={authEmail}
+                            onChange={e => setAuthEmail(e.target.value)}
+                            className="w-full bg-antiwhite text-navy border-3 border-navy px-3 py-2 font-semibold focus:outline-none text-xs focus:ring-2 focus:ring-vibrantred"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black uppercase text-frenchgray block mb-1">Password</label>
+                          <input
+                            type="password"
+                            placeholder="••••••••"
+                            value={authPassword}
+                            onChange={e => setAuthPassword(e.target.value)}
+                            className="w-full bg-antiwhite text-navy border-3 border-navy px-3 py-2 font-semibold focus:outline-none text-xs focus:ring-2 focus:ring-vibrantred"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isSubmittingAuth}
+                        className="bg-vibrantred hover:bg-engorange disabled:bg-frenchgray text-antiwhite text-[10px] font-black uppercase px-5 py-2.5 border-3 border-navy shadow-[2.5px_2.5px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer inline-flex items-center gap-1.5"
+                      >
+                        {isSubmittingAuth ? (
+                          <>
+                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Processing...
+                          </>
+                        ) : authTab === "login" ? (
+                          "Log In & Access"
+                        ) : (
+                          "Register New Account"
+                        )}
+                      </button>
+                    </form>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1157,10 +1323,16 @@ export default function Home() {
               Synchronize public data profiles and run your ATS optimization pipeline.
             </p>
             <button
-              onClick={() => setActiveTab("profile")}
+              onClick={() => {
+                if (user) {
+                  setActiveTab("profile");
+                } else {
+                  setShowAuthModal(true);
+                }
+              }}
               className="mt-4 bg-vibrantred hover:bg-engorange text-antiwhite text-xs font-black uppercase px-6 py-2.5 border-3 border-navy shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer inline-block"
             >
-              Access Agent Console
+              {user ? "Access Agent Console" : "Log In to Access Console"}
             </button>
           </footer>
         </div>
@@ -1176,9 +1348,22 @@ export default function Home() {
               </div>
               <p className="text-frenchgray font-bold text-xs sm:text-sm mt-1 tracking-wider uppercase">Autonomous Multi-Agent Career Optimization Engine</p>
             </div>
-        <div className="z-10 flex items-center gap-3 bg-antiwhite text-navy border-3 border-navy shadow-[3px_3px_0px_0px_rgba(239,35,60,1)] px-4 py-2 text-xs font-black uppercase tracking-wider">
-          <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-ping" />
-          Hindsight Vector Active
+        <div className="z-10 flex flex-wrap items-center gap-3">
+          {user && (
+            <div className="bg-antiwhite/10 text-antiwhite border border-antiwhite/20 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider font-sans">
+              ID: {userId}
+            </div>
+          )}
+          <button 
+            onClick={async () => {
+              await supabase.auth.signOut();
+              setActiveTab("landing");
+              triggerToast("Signed out successfully.", "success");
+            }}
+            className="bg-vibrantred hover:bg-engorange text-antiwhite border-2 border-antiwhite px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer font-sans"
+          >
+            Sign Out
+          </button>
         </div>
       </header>
 
@@ -2230,6 +2415,99 @@ export default function Home() {
                 Close Dashboard
               </button>
             </div>
+          </div>
+        </>
+      )}
+
+      {/* 3. Authentication Required Modal */}
+      {showAuthModal && (
+        <>
+          <div 
+            className="fixed inset-0 bg-navy/60 backdrop-blur-sm z-[90] animate-fade-in" 
+            onClick={() => setShowAuthModal(false)} 
+          />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-antiwhite border-4 border-navy shadow-[8px_8px_0px_0px_rgba(43,45,66,1)] p-6 z-[95] animate-scale-in">
+            <div className="flex justify-between items-center border-b-4 border-navy pb-3 mb-4">
+              <h2 className="text-lg font-black uppercase text-navy">Authentication Required</h2>
+              <button 
+                onClick={() => setShowAuthModal(false)}
+                className="bg-white hover:bg-frenchgray/20 border-2 border-navy p-1 text-navy cursor-pointer transition-all"
+              >
+                <Icons.Close />
+              </button>
+            </div>
+            
+            <p className="text-[10px] font-bold text-frenchgray uppercase mb-4 leading-normal">
+              You must log in or create an account to access the Career Command Center, run resume tailoring loops, or check application pipelines.
+            </p>
+
+            {/* Modal Auth Tabs */}
+            <div className="flex border-b-2 border-navy/20 mb-4">
+              <button
+                onClick={() => setAuthTab("login")}
+                type="button"
+                className={`pb-2 px-4 text-xs font-black uppercase tracking-wider cursor-pointer border-b-3 transition-all ${
+                  authTab === "login"
+                    ? "border-vibrantred text-navy"
+                    : "border-transparent text-frenchgray hover:text-navy"
+                }`}
+              >
+                Log In
+              </button>
+              <button
+                onClick={() => setAuthTab("signup")}
+                type="button"
+                className={`pb-2 px-4 text-xs font-black uppercase tracking-wider cursor-pointer border-b-3 transition-all ${
+                  authTab === "signup"
+                    ? "border-vibrantred text-navy"
+                    : "border-transparent text-frenchgray hover:text-navy"
+                }`}
+              >
+                Create Account
+              </button>
+            </div>
+
+            <form onSubmit={handleAuthSubmit} className="space-y-4 font-sans">
+              <div>
+                <label className="text-[9px] font-black uppercase text-frenchgray block mb-1">Email Address</label>
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={authEmail}
+                  onChange={e => setAuthEmail(e.target.value)}
+                  className="w-full bg-antiwhite text-navy border-3 border-navy px-3 py-2 font-semibold focus:outline-none text-xs focus:ring-2 focus:ring-vibrantred"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-black uppercase text-frenchgray block mb-1">Password</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={authPassword}
+                  onChange={e => setAuthPassword(e.target.value)}
+                  className="w-full bg-antiwhite text-navy border-3 border-navy px-3 py-2 font-semibold focus:outline-none text-xs focus:ring-2 focus:ring-vibrantred"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmittingAuth}
+                className="w-full bg-vibrantred hover:bg-engorange disabled:bg-frenchgray text-antiwhite text-xs font-black uppercase py-3 border-3 border-navy shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer inline-flex justify-center items-center gap-1.5"
+              >
+                {isSubmittingAuth ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Processing...
+                  </>
+                ) : authTab === "login" ? (
+                  "Log In & Enter"
+                ) : (
+                  "Register New Account"
+                )}
+              </button>
+            </form>
           </div>
         </>
       )}
