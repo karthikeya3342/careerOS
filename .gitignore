@@ -29,17 +29,6 @@ backend/user_config.json
 backend/users_config.json
 backend/scratch/
 
-# ─── Embedded / third-party tool subdirectories ───
-backend/JobSpy/
-backend/job-scout/
-backend/jobbot/
-backend/hiring-agent/
-
-# ─── Root-level data files ───
-jobs_db.json
-curl_google.html
-google_final.html
-google_jobs_initial.html
 
 # ─── Build artifacts & outputs ───
 backend/output/*/

@@ -1,0 +1,9 @@
+[submodule "backend/JobSpy"]
+	path = backend/JobSpy
+	url = https://github.com/speedyapply/JobSpy.git
+[submodule "backend/job-scout"]
+	path = backend/job-scout
+	url = https://github.com/rajath-0717/job-scout.git
+[submodule "backend/jobbot"]
+	path = backend/jobbot
+	url = https://github.com/kottanaindrakiran/-jobbot.git
