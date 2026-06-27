@@ -94,6 +94,7 @@ export default function Home() {
         const emailPrefix = session.user.email?.split("@")[0] || "karthikeya";
         setUserId(emailPrefix);
         setEmail(session.user.email || "");
+        setActiveTab("profile");
       }
     });
 
@@ -104,6 +105,7 @@ export default function Home() {
         const emailPrefix = session.user.email?.split("@")[0] || "karthikeya";
         setUserId(emailPrefix);
         setEmail(session.user.email || "");
+        setActiveTab("profile");
       } else {
         setUserId("karthikeya"); // reset to default candidate ID
         setActiveTab("landing");

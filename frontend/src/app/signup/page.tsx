@@ -38,9 +38,7 @@ export default function SignupPage() {
       if (error) {
         setErrorMsg(error.message);
       } else {
-        setSuccessMsg("Account created successfully! Check your inbox for verification if needed, or proceed to log in.");
-        setEmail("");
-        setPassword("");
+        router.push("/");
       }
     } catch (err: any) {
       setErrorMsg(err.message || "An unexpected error occurred.");
