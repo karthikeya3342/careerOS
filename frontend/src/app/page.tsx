@@ -1522,8 +1522,6 @@ export default function Home() {
             {/* Jobs Board Grid Layout */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {jobs.map(job => {
-                // Mock calculation of match scores
-                const matchScore = job.experience_years <= 2 ? 95 : 82;
                 const isRecommended = job.skills.some(s => s.toLowerCase().includes("learning") || s.toLowerCase().includes("ml") || s.toLowerCase().includes("robot"));
 
                 return (
@@ -1545,15 +1543,14 @@ export default function Home() {
                       </h3>
                       <p className="text-xs font-black text-vibrantred uppercase tracking-wider font-sans">{job.company}</p>
                       
-                      {/* Match Score Gauge Indicator */}
-                      <div className="flex items-center gap-2 mt-3.5 font-sans">
-                        <RadialProgress score={matchScore} size={38} strokeWidth={3} />
-                        {isRecommended && (
+                      {/* Recommendations */}
+                      {isRecommended && (
+                        <div className="flex items-center gap-2 mt-3.5 font-sans">
                           <div className="bg-vibrantred text-antiwhite text-[9px] font-black uppercase px-2 py-0.5 border border-navy">
                             ★ Recommended
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       <p className="text-xs text-navy/85 mt-4 line-clamp-3 font-semibold leading-loose border-t border-navy/5 pt-3 select-text font-sans">
                         {job.description}
