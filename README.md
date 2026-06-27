@@ -75,23 +75,30 @@ Make sure you have the following installed:
    ```bash
    pip install -r requirements.txt
    ```
-   *(Ensure `cascadeflow`, `fastapi`, `uvicorn`, `groq`, `google-generativeai`, and `python-dotenv` are installed)*
+   *(Ensure `cascadeflow`, `fastapi`, `uvicorn`, `groq`, `google-generativeai`, `python-dotenv`, and other dependencies are installed)*
 
-4. Configure the Environment Variables:
+4. Install Playwright browser dependencies (needed for Apna and Foundit scrapers):
+   ```bash
+   playwright install chromium
+   ```
+
+5. Configure the Environment Variables:
    Create a `.env` file in the `backend/` directory:
    ```env
    GROQ_API_KEY=your_groq_api_key_here
    GEMINI_API_KEY=your_gemini_api_key_here
    HINDSIGHT_API_KEY=your_hindsight_api_key_here
+   AGENTMAIL_API_KEY=your_agentmail_api_key_here
+   AGENTMAIL_INBOX_ID=your_agentmail_inbox_id_here
    ```
 
-5. Initialize the Simulated Jobs Database:
+6. Initialize the Simulated Jobs Database:
    Generate mock jobs (Machine Learning, Robotics, Software Engineering, etc.):
    ```bash
    python generate_jobs.py
    ```
 
-6. Launch the backend API server:
+7. Launch the backend API server:
    ```bash
    python main.py
    ```
