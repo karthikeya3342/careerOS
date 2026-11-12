@@ -1,5 +1,10 @@
 # CareerOS — Autonomous Multi-Agent Career Optimization Engine
 
+
+
+
+[YouTube Tutorial](https://youtu.be/9cqEbAvRIYY?si=v_2gvd2HwkbgHwNe)
+
 CareerOS is an advanced, autonomous multi-agent developer workspace designed to automate profile ingestion, resume tailoring, ATS evaluation loops, outreach preparation, and interview readiness. 
 
 Unlike traditional AI resume builders that only generate content after a manual prompt, **CareerOS works continuously in the background**. It discovers new opportunities daily, analyzes candidate eligibility, tailors job-specific application materials, and prepares interview questions, requiring only a few minutes of candidate review time rather than hours of manual labor.
